@@ -154,7 +154,7 @@ export default function App() {
         </div>
       </nav>
       <div className="content">
-        <header><b>{title}</b><span>{profile.full_name}</span></header>
+        <header><div className="hdr-logo"><Logo size={20} /></div><b>{title}</b><span className="hdr-name">{profile.full_name}</span></header>
         <main>{view}</main>
       </div>
     </div>

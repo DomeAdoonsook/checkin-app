@@ -117,10 +117,9 @@ button.stat { justify-content:flex-start; align-items:flex-start; }
 
 /* ไม่แสดงซ้ำบนคอม: ปุ่มออกจากระบบและชื่ออยู่ที่เมนูข้างแล้ว (มือถือไม่มีเมนูข้าง จึงแสดงตามเดิม) */
 button.only-mobile { display:none; }
-.content header span { display:none; }
+.content header .hdr-name { display:none; }
 @media (max-width: 820px) {
   button.only-mobile { display:flex; }
-  .content header span { display:block; }
 }
 
 /* การ์ดติดตั้งแอป */
@@ -158,4 +157,11 @@ button.only-mobile { display:none; }
   .side .brand { display:none; }
   .nav-item .lbl-short { white-space:nowrap; }
   .nav-item { font-size:.7rem; padding:6px 0; min-width:0; }
+}
+
+/* แถบหัว: โลโก้อยู่ซ้ายบนเฉพาะมือถือ (บนคอมอยู่ในเมนูข้างแล้ว) */
+.hdr-logo { display:none; }
+@media (max-width: 820px) {
+  .hdr-logo { display:block; background:#fff; border-radius:12px; padding:4px 10px 3px; flex:none; }
+  .content header b { margin-left:auto; text-align:right; }
 }
