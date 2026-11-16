@@ -201,9 +201,9 @@ export default function Teacher() {
               : <>
                   <details>
                     <summary>ตั้งค่าตำแหน่ง (ไม่บังคับ)</summary>
-                    <input placeholder="ละติจูด เช่น 13.7563" value={geo.lat} onChange={e => setGeo({ ...geo, lat: e.target.value })} />
-                    <input placeholder="ลองจิจูด เช่น 100.5018" value={geo.lng} onChange={e => setGeo({ ...geo, lng: e.target.value })} />
-                    <input placeholder="รัศมี (เมตร)" type="number" value={geo.radius} onChange={e => setGeo({ ...geo, radius: e.target.value })} />
+                    <label>ละติจูด (เช่น 13.7563)<input placeholder="13.7563" value={geo.lat} onChange={e => setGeo({ ...geo, lat: e.target.value })} /></label>
+                    <label>ลองจิจูด (เช่น 100.5018)<input placeholder="100.5018" value={geo.lng} onChange={e => setGeo({ ...geo, lng: e.target.value })} /></label>
+                    <label>รัศมีที่อนุญาต (เมตร) — นักศึกษาต้องอยู่ห่างจากจุดนี้ไม่เกินระยะนี้ (แนะนำ 50–100)<input placeholder="100" type="number" min="10" value={geo.radius} onChange={e => setGeo({ ...geo, radius: e.target.value })} /></label>
                     <button className="secondary" onClick={useHere}>ใช้ตำแหน่งปัจจุบัน</button>
                   </details>
                   <button onClick={() => openSession(sec)}><Icon name="play" size={16} /> เปิดคาบเช็คชื่อ</button>
