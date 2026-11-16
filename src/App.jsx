@@ -4,6 +4,7 @@ import Login from './Login.jsx'
 import Student from './Student.jsx'
 import Teacher from './Teacher.jsx'
 import ChangePassword from './ChangePassword.jsx'
+import Admin from './Admin.jsx'
 
 function useHash() {
   const [h, setH] = useState(location.hash)
@@ -36,6 +37,22 @@ export default function App() {
   if (!session) return <Login />
   if (!profile) return <p className="center">กำลังโหลดโปรไฟล์… (ถ้าค้าง บัญชีนี้ยังไม่มีสิทธิ์ใช้งาน)</p>
 
+  if (profile.status === 'pending' || profile.status === 'rejected') {
+    return (
+      <main>
+        <section className="card center">
+          <h2>{profile.status === 'pending' ? '⏳ รอแอดมินอนุมัติ' : 'ใบสมัครไม่ได้รับการอนุมัติ'}</h2>
+          <p className="muted">
+            {profile.status === 'pending'
+              ? 'บัญชีของคุณยังไม่ได้รับสิทธิ์ใช้งาน กรุณาลองเข้าสู่ระบบใหม่หลังแอดมินอนุมัติ'
+              : 'กรุณาติดต่อแอดมินหากคิดว่าเกิดความผิดพลาด'}
+          </p>
+          <button onClick={() => supabase.auth.signOut()}>ออกจากระบบ</button>
+        </section>
+      </main>
+    )
+  }
+
   // ลิงก์จาก QR: #/c/<session_id>/<token>
   const m = hash.match(/^#\/c\/([0-9a-f-]{36})\/(.+)$/)
   return (
@@ -48,7 +65,7 @@ export default function App() {
       <main>
         {profile.role === 'student'
           ? <Student profile={profile} scan={m ? { session: m[1], token: m[2] } : null} />
-          : <Teacher profile={profile} />}
+          : <>{profile.role === 'admin' && <Admin />}<Teacher profile={profile} /></>}
         <ChangePassword />
       </main>
     </>
