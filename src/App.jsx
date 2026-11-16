@@ -7,6 +7,7 @@ import Account from './Account.jsx'
 import Admin from './Admin.jsx'
 import CourseManager from './CourseManager.jsx'
 import AdminHome from './AdminHome.jsx'
+import Icon from './Icon.jsx'
 
 function useHash() {
   const [h, setH] = useState(location.hash)
@@ -18,15 +19,15 @@ function useHash() {
   return h
 }
 
-const ACCOUNT = { id: 'account', icon: '👤', label: 'บัญชีของฉัน', short: 'บัญชี' }
+const ACCOUNT = { id: 'account', icon: 'user', label: 'บัญชีของฉัน', short: 'บัญชี' }
 
 // เมนูด้านข้างจัดกลุ่มตามบทบาท
 function navFor(role, pending) {
   if (role === 'student') {
     return [
       { title: 'การเรียน', items: [
-        { id: 'checkin', icon: '📷', label: 'เช็คชื่อ', short: 'เช็คชื่อ' },
-        { id: 'history', icon: '📊', label: 'ประวัติของฉัน', short: 'ประวัติ' },
+        { id: 'checkin', icon: 'camera', label: 'เช็คชื่อ', short: 'เช็คชื่อ' },
+        { id: 'history', icon: 'chart', label: 'ประวัติของฉัน', short: 'ประวัติ' },
       ] },
       { title: 'บัญชี', items: [ACCOUNT] },
     ]
@@ -35,16 +36,16 @@ function navFor(role, pending) {
     // แอดมิน: เริ่มที่หน้าผู้ดูแลระบบ ส่วนงานสอนอยู่ถัดลงมา
     return [
       { title: 'ผู้ดูแลระบบ', items: [
-        { id: 'overview', icon: '🏠', label: 'ภาพรวม', short: 'ภาพรวม' },
-        { id: 'applicants', icon: '📝', label: 'ใบสมัครอาจารย์', short: 'ใบสมัคร', badge: pending },
-        { id: 'manage', icon: '🗂️', label: 'จัดการวิชา', short: 'จัดการ' },
+        { id: 'overview', icon: 'home', label: 'ภาพรวม', short: 'ภาพรวม' },
+        { id: 'applicants', icon: 'file', label: 'ใบสมัครอาจารย์', short: 'ใบสมัคร', badge: pending },
+        { id: 'manage', icon: 'folder', label: 'จัดการวิชา', short: 'จัดการ' },
       ] },
-      { title: 'การสอน', items: [{ id: 'courses', icon: '📚', label: 'วิชาที่ฉันสอน', short: 'วิชา' }] },
+      { title: 'การสอน', items: [{ id: 'courses', icon: 'book', label: 'วิชาที่ฉันสอน', short: 'วิชา' }] },
       { title: 'บัญชี', items: [ACCOUNT] },
     ]
   }
   return [
-    { title: 'การสอน', items: [{ id: 'courses', icon: '📚', label: 'วิชาของฉัน', short: 'วิชา' }] },
+    { title: 'การสอน', items: [{ id: 'courses', icon: 'book', label: 'วิชาของฉัน', short: 'วิชา' }] },
     { title: 'บัญชี', items: [ACCOUNT] },
   ]
 }
@@ -122,14 +123,14 @@ export default function App() {
   return (
     <div className="shell">
       <nav className="side">
-        <div className="brand">✅ เช็คชื่อ</div>
+        <div className="brand"><Icon name="check" size={24} /> เช็คชื่อ</div>
         <div className="navlist">
           {groups.map(g => (
             <div key={g.title}>
               <div className="navgroup">{g.title}</div>
               {g.items.map(it => (
                 <button key={it.id} className={'nav-item' + (current === it.id ? ' on' : '')} onClick={() => go(it.id)}>
-                  <span className="ico">{it.icon}</span>
+                  <span className="ico"><Icon name={it.icon} /></span>
                   <span className="lbl-long">{it.label}</span>
                   <span className="lbl-short">{it.short}</span>
                   {it.badge > 0 && <span className="badge">{it.badge}</span>}
