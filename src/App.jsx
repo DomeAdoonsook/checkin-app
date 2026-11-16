@@ -128,7 +128,7 @@ export default function App() {
   return (
     <div className="shell">
       <nav className="side">
-        <div className="brand"><Icon name="check" size={24} /> เช็คชื่อ</div>
+        <div className="brand"><Icon name="check" size={24} /> MJU Check</div>
         <div className="navlist">
           {groups.map(g => (
             <div key={g.title}>

@@ -62,7 +62,7 @@ export default function Login() {
   return (
     <div className="auth-wrap">
     <form className="card login" onSubmit={submit}>
-      <h1>ระบบเช็คชื่อ</h1>
+      <h1>MJU Check</h1>
       <div className="tabs">
         {TABS.map(([k, label]) => (
           <button type="button" key={k} className={mode === k ? 'tab on' : 'tab'} onClick={() => go(k)}>{label}</button>

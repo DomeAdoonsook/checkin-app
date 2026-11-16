@@ -1,7 +1,7 @@
 {
   "id": "./",
-  "name": "ระบบเช็คชื่อ",
-  "short_name": "เช็คชื่อ",
+  "name": "MJU Check",
+  "short_name": "MJU Check",
   "lang": "th",
   "start_url": "./",
   "scope": "./",
