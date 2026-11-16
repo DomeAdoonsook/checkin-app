@@ -19,3 +19,8 @@ class Boundary extends React.Component {
 }
 
 createRoot(document.getElementById('root')).render(<Boundary><App /></Boundary>)
+
+// ลงทะเบียน service worker (ให้ติดตั้งลงหน้าจอโฮมได้) ไม่แคชไฟล์
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}))
+}

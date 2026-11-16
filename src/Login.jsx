@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { supabase, errMsg } from './supabase.js'
+import InstallCard from './InstallCard.jsx'
 
 const TABS = [
   ['login', 'เข้าสู่ระบบ'],
@@ -59,6 +60,7 @@ export default function Login() {
   const isNew = mode !== 'login'
 
   return (
+    <>
     <form className="card login" onSubmit={submit}>
       <h1>ระบบเช็คชื่อ</h1>
       <div className="tabs">
@@ -100,5 +102,7 @@ export default function Login() {
         {mode === 'login' ? 'เข้าสู่ระบบ' : mode === 'activate' ? 'ลงทะเบียน' : 'ส่งใบสมัคร'}
       </button>
     </form>
+    <InstallCard />
+    </>
   )
 }
