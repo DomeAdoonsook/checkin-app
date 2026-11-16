@@ -129,7 +129,7 @@ export default function App() {
   return (
     <div className="shell">
       <nav className="side">
-        <div className="brand"><Logo size={22} /></div>
+        <div className="brand"><Logo size={30} /></div>
         <div className="navlist">
           {groups.map(g => (
             <div key={g.title}>
