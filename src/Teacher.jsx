@@ -110,6 +110,9 @@ function Roster({ session }) {
   )
 }
 
+// ตำแหน่งเริ่มต้นของระบบ (ใช้เมื่อวิชายังไม่ได้บันทึกตำแหน่งประจำวิชา) รัศมีเริ่มต้น 25 เมตร
+const DEFAULT_GEO = { lat: '18.897152', lng: '99.017858', radius: 25 }
+
 export default function Teacher() {
   const [sections, setSections] = useState([])
   const [sessions, setSessions] = useState([])
@@ -121,7 +124,10 @@ export default function Teacher() {
   const [note, setNote] = useState('')
 
   // ตำแหน่งที่ใช้เปิดคาบ = ที่กำลังแก้ ถ้าไม่มีใช้ "ตำแหน่งประจำวิชา" ที่บันทึกไว้
-  const geoOf = sec => ({ lat: sec.default_lat ?? '', lng: sec.default_lng ?? '', radius: sec.default_radius_m ?? 25, ...(geos[sec.id] ?? {}) })
+  const geoOf = sec => ({
+    lat: sec.default_lat ?? DEFAULT_GEO.lat, lng: sec.default_lng ?? DEFAULT_GEO.lng,
+    radius: sec.default_radius_m ?? DEFAULT_GEO.radius, ...(geos[sec.id] ?? {}),
+  })
   const setGeoOf = (sec, patch) => setGeos(p => ({ ...p, [sec.id]: { ...geoOf(sec), ...patch } }))
 
   async function load() {
@@ -228,7 +234,7 @@ export default function Teacher() {
                     <summary>
                       ตำแหน่งเช็คชื่อ: {sec.default_lat != null
                         ? `ตั้งไว้แล้ว (รัศมี ${sec.default_radius_m} ม.)`
-                        : 'ยังไม่ได้ตั้ง (ไม่ตรวจระยะ)'}
+                        : 'ใช้ตำแหน่งเริ่มต้นของระบบ (รัศมี 25 ม.)'}
                     </summary>
                     {(() => { const g = geoOf(sec); return (<>
                       <label>ละติจูด (เช่น 13.7563)<input placeholder="13.7563" value={g.lat} onChange={e => setGeoOf(sec, { lat: e.target.value })} /></label>
@@ -236,6 +242,7 @@ export default function Teacher() {
                       <label>รัศมีที่อนุญาต (เมตร) — นักศึกษาต้องอยู่ห่างจากจุดนี้ไม่เกินระยะนี้ (ค่าเริ่มต้น 25 — GPS ในอาคารมักคลาดเคลื่อน 20–50 ม. ควรทดสอบก่อน)<input placeholder="25" type="number" min="10" value={g.radius} onChange={e => setGeoOf(sec, { radius: e.target.value })} /></label>
                     </>) })()}
                     <button className="secondary" onClick={() => useHere(sec)}><Icon name="pin" size={18} /> ใช้ตำแหน่งปัจจุบัน</button>
+                    <button className="link" onClick={() => setGeoOf(sec, DEFAULT_GEO)}>ใช้ตำแหน่งเริ่มต้นของระบบ</button>
                     <button onClick={() => saveLocation(sec)}>บันทึกเป็นตำแหน่งประจำวิชา</button>
                     {sec.default_lat != null && <button className="link" onClick={() => saveLocation(sec, true)}>ล้างตำแหน่งประจำวิชา</button>}
                     <p className="muted">กดบันทึกครั้งเดียว คาบถัดไปจะใช้ตำแหน่งและรัศมีนี้อัตโนมัติ (ถ้าแก้ค่าโดยไม่กดบันทึก จะใช้เฉพาะคาบที่เปิดตอนนี้)</p>
