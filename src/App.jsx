@@ -6,6 +6,7 @@ import Teacher from './Teacher.jsx'
 import Account from './Account.jsx'
 import Admin from './Admin.jsx'
 import CourseManager from './CourseManager.jsx'
+import AdminHome from './AdminHome.jsx'
 
 function useHash() {
   const [h, setH] = useState(location.hash)
@@ -30,17 +31,22 @@ function navFor(role, pending) {
       { title: 'บัญชี', items: [ACCOUNT] },
     ]
   }
-  const groups = [
-    { title: 'การสอน', items: [{ id: 'courses', icon: '📚', label: 'วิชาของฉัน', short: 'วิชา' }] },
-  ]
   if (role === 'admin') {
-    groups.push({ title: 'ผู้ดูแลระบบ', items: [
-      { id: 'applicants', icon: '📝', label: 'ใบสมัครอาจารย์', short: 'ใบสมัคร', badge: pending },
-      { id: 'manage', icon: '🗂️', label: 'จัดการวิชา', short: 'จัดการ' },
-    ] })
+    // แอดมิน: เริ่มที่หน้าผู้ดูแลระบบ ส่วนงานสอนอยู่ถัดลงมา
+    return [
+      { title: 'ผู้ดูแลระบบ', items: [
+        { id: 'overview', icon: '🏠', label: 'ภาพรวม', short: 'ภาพรวม' },
+        { id: 'applicants', icon: '📝', label: 'ใบสมัครอาจารย์', short: 'ใบสมัคร', badge: pending },
+        { id: 'manage', icon: '🗂️', label: 'จัดการวิชา', short: 'จัดการ' },
+      ] },
+      { title: 'การสอน', items: [{ id: 'courses', icon: '📚', label: 'วิชาที่ฉันสอน', short: 'วิชา' }] },
+      { title: 'บัญชี', items: [ACCOUNT] },
+    ]
   }
-  groups.push({ title: 'บัญชี', items: [ACCOUNT] })
-  return groups
+  return [
+    { title: 'การสอน', items: [{ id: 'courses', icon: '📚', label: 'วิชาของฉัน', short: 'วิชา' }] },
+    { title: 'บัญชี', items: [ACCOUNT] },
+  ]
 }
 
 export default function App() {
@@ -108,6 +114,7 @@ export default function App() {
   let view
   if (current === 'account') view = <Account profile={profile} email={session.user.email} />
   else if (isStudent) view = <Student profile={profile} view={current} scan={scan} onScanDone={() => setConsumed(hash)} />
+  else if (current === 'overview') view = <AdminHome onGo={go} />
   else if (current === 'applicants') view = <Admin onChanged={refreshPending} />
   else if (current === 'manage') view = <CourseManager />
   else view = <Teacher profile={profile} />
