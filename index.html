@@ -8,5 +8,6 @@
 <link rel="icon" href="./icon.svg" />
 <title>เช็คชื่อ</title>
 </head>
-<body><div id="root"></div><script type="module" src="/src/main.jsx"></script></body>
+<body><script>(function(){function show(m){var r=document.getElementById("root");if(r&&!r.children.length){r.innerHTML="<pre style=\"white-space:pre-wrap;padding:16px;color:#b91c1c;font:14px monospace\">เกิดข้อผิดพลาด (ส่งภาพนี้ให้ผู้พัฒนา):
+"+String(m).replace(/</g,"&lt;")+"</pre>"}}window.addEventListener("error",function(e){show(e.message+" @"+(e.filename||"").split("/").pop()+":"+e.lineno)});window.addEventListener("unhandledrejection",function(e){show("promise: "+(e.reason&&e.reason.message||e.reason))});setTimeout(function(){var r=document.getElementById("root");if(r&&!r.children.length)show("หน้าไม่แสดงผลหลัง 6 วินาที | "+navigator.userAgent)},6000)})()</script><div id="root"></div><script type="module" src="/src/main.jsx"></script></body>
 </html>
