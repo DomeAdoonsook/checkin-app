@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase, errMsg } from './supabase.js'
 
 // หน้าแอดมิน: อนุมัติอาจารย์ที่สมัครเข้ามา + เลือกวิชาที่ให้สอน
-export default function Admin() {
+export default function Admin({ onChanged }) {
   const [pending, setPending] = useState([])
   const [sections, setSections] = useState([])
   const [pick, setPick] = useState({})   // { teacherId: Set(sectionId) }
@@ -30,13 +30,13 @@ export default function Admin() {
     if (ids.length === 0 && !confirm(`ยังไม่ได้เลือกวิชาให้ ${t.full_name} อนุมัติโดยไม่มอบหมายวิชาใช่ไหม?`)) return
     setMsg('')
     const { error } = await supabase.rpc('admin_approve_teacher', { p_teacher: t.id, p_sections: ids })
-    if (error) setMsg(errMsg(error)); else load()
+    if (error) setMsg(errMsg(error)); else { load(); onChanged?.() }
   }
 
   async function reject(t) {
     if (!confirm(`ปฏิเสธใบสมัครของ ${t.full_name}?`)) return
     const { error } = await supabase.rpc('admin_reject_teacher', { p_teacher: t.id })
-    if (error) setMsg(errMsg(error)); else load()
+    if (error) setMsg(errMsg(error)); else { load(); onChanged?.() }
   }
 
   return (

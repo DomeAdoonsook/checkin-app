@@ -37,7 +37,7 @@ function Result({ r, onDone }) {
   )
 }
 
-export default function Student({ profile, scan }) {
+export default function Student({ profile, scan, view = 'checkin', onScanDone }) {
   const [openSessions, setOpen] = useState([])
   const [records, setRecords] = useState([])
   const [result, setResult] = useState(null)
@@ -71,6 +71,7 @@ export default function Student({ profile, scan }) {
     if (scan && !handled.current) {
       handled.current = true
       history.replaceState(null, '', location.pathname)
+      onScanDone?.()
       submit(scan.session, scan.token)
     }
   }, [scan])
@@ -101,7 +102,7 @@ export default function Student({ profile, scan }) {
 
   return (
     <>
-      <section className="card">
+      {view === 'checkin' && <section className="card">
         <h2>เช็คชื่อ</h2>
         {openSessions.length === 0
           ? <p className="muted">ตอนนี้ไม่มีคาบที่เปิดเช็คชื่อ</p>
@@ -114,9 +115,9 @@ export default function Student({ profile, scan }) {
           : <button disabled={busy || openSessions.length === 0} onClick={() => { setError(''); setScanning(true) }}>
               {busy ? 'กำลังเช็คชื่อ…' : '📷 สแกน QR เพื่อเช็คชื่อ'}
             </button>}
-      </section>
+      </section>}
 
-      <section className="card">
+      {view === 'history' && <section className="card">
         <h2>การมาเรียนของฉัน</h2>
         {Object.keys(byCourse).length === 0 && <p className="muted">ยังไม่มีข้อมูล</p>}
         {Object.entries(byCourse).map(([k, rows]) => {
@@ -132,7 +133,7 @@ export default function Student({ profile, scan }) {
             </details>
           )
         })}
-      </section>
+      </section>}
     </>
   )
 }

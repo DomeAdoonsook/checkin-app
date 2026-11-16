@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { supabase } from './supabase.js'
 
-export default function ChangePassword() {
+export default function ChangePassword({ defaultOpen = false }) {
   const [pw, setPw] = useState('')
   const [pw2, setPw2] = useState('')
   const [msg, setMsg] = useState(null)   // { ok, text }
@@ -20,7 +20,7 @@ export default function ChangePassword() {
 
   return (
     <section className="card">
-      <details>
+      <details open={defaultOpen}>
         <summary>เปลี่ยนรหัสผ่านของฉัน</summary>
         <form onSubmit={submit}>
           <label>รหัสผ่านใหม่ (อย่างน้อย 8 ตัว)

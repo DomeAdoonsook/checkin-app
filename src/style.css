@@ -5,7 +5,7 @@ body { margin:0; font-family: system-ui, "Noto Sans Thai", sans-serif; backgroun
 header { display:flex; gap:12px; align-items:center; padding:12px 16px; background:var(--pri); color:#fff; padding-top:max(12px, env(safe-area-inset-top)); }
 header span { flex:1; text-align:right; font-size:.9rem; opacity:.9; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 header .link { color:#fff; }
-main { max-width:640px; margin:0 auto; padding:12px 16px 40px; }
+main { max-width:860px; margin:0 auto; padding:12px 16px 40px; }
 .card { background:var(--card); border-radius:12px; padding:16px; margin:12px 0; box-shadow:0 1px 3px #0002; }
 .login { max-width:380px; margin:10vh auto; }
 .center { text-align:center; }
@@ -54,3 +54,33 @@ header button.logout { width:auto; margin:0; padding:6px 12px; font-size:.85rem;
 .secrow { margin:6px 0; }
 .coursebox { border-top:1px solid #8884; margin-top:12px; padding-top: 4px; }
 textarea { width:100%; padding:12px; margin-top:4px; font-size:1rem; border:1px solid #9ca3af; border-radius:8px; background:var(--card); color:var(--fg); font-family:inherit; }
+
+/* ===== โครงหน้า: sidebar จัดกลุ่ม (คอม) / แถบเมนูล่าง (มือถือ) ===== */
+.shell { display:flex; min-height:100vh; }
+.side { width:248px; flex:none; background:var(--card); border-right:1px solid #8884; display:flex; flex-direction:column; position:sticky; top:0; height:100vh; padding:12px; }
+.brand { font-weight:700; font-size:1.15rem; padding:8px 10px 12px; color:var(--pri); }
+.navlist { flex:1; overflow:auto; }
+.navgroup { font-size:.72rem; letter-spacing:.06em; color:var(--mut); margin:16px 10px 4px; }
+.nav-item { display:flex; align-items:center; gap:10px; width:100%; margin:2px 0; padding:10px 12px; border-radius:8px; background:transparent; color:var(--fg); font-size:.95rem; text-align:left; position:relative; }
+.nav-item:hover { background:#8882; }
+.nav-item.on { background:var(--pri); color:#fff; }
+.nav-item .ico { width:1.4em; text-align:center; }
+.lbl-short { display:none; }
+.badge { margin-left:auto; background:var(--bad); color:#fff; border-radius:999px; font-size:.72rem; padding:1px 7px; }
+.sidefoot { border-top:1px solid #8884; padding-top:10px; }
+.who { display:flex; flex-direction:column; gap:2px; padding:4px 6px 6px; font-size:.9rem; }
+button.signout { background:transparent; color:var(--fg); border:1px solid #8886; padding:8px; font-size:.9rem; margin-top:4px; }
+.content { flex:1; min-width:0; }
+.content header { position:sticky; top:0; z-index:10; }
+
+@media (max-width: 820px) {
+  .shell { display:block; }
+  .side { position:fixed; bottom:0; left:0; right:0; top:auto; width:100%; height:auto; flex-direction:row; padding:4px 4px max(4px, env(safe-area-inset-bottom)); border-right:0; border-top:1px solid #8884; z-index:50; }
+  .brand, .navgroup, .sidefoot, .lbl-long { display:none; }
+  .lbl-short { display:inline; }
+  .navlist { display:flex; flex:1; overflow:visible; }
+  .navlist > div { display:contents; }
+  .nav-item { flex:1; flex-direction:column; gap:2px; padding:6px 2px; margin:0; font-size:.72rem; text-align:center; justify-content:center; }
+  .badge { position:absolute; top:0; right:14%; margin:0; }
+  main { padding-bottom:90px; }
+}

@@ -3,7 +3,7 @@ import { supabase } from './supabase.js'
 import Login from './Login.jsx'
 import Student from './Student.jsx'
 import Teacher from './Teacher.jsx'
-import ChangePassword from './ChangePassword.jsx'
+import Account from './Account.jsx'
 import Admin from './Admin.jsx'
 import CourseManager from './CourseManager.jsx'
 
@@ -17,9 +17,38 @@ function useHash() {
   return h
 }
 
+const ACCOUNT = { id: 'account', icon: '👤', label: 'บัญชีของฉัน', short: 'บัญชี' }
+
+// เมนูด้านข้างจัดกลุ่มตามบทบาท
+function navFor(role, pending) {
+  if (role === 'student') {
+    return [
+      { title: 'การเรียน', items: [
+        { id: 'checkin', icon: '📷', label: 'เช็คชื่อ', short: 'เช็คชื่อ' },
+        { id: 'history', icon: '📊', label: 'ประวัติของฉัน', short: 'ประวัติ' },
+      ] },
+      { title: 'บัญชี', items: [ACCOUNT] },
+    ]
+  }
+  const groups = [
+    { title: 'การสอน', items: [{ id: 'courses', icon: '📚', label: 'วิชาของฉัน', short: 'วิชา' }] },
+  ]
+  if (role === 'admin') {
+    groups.push({ title: 'ผู้ดูแลระบบ', items: [
+      { id: 'applicants', icon: '📝', label: 'ใบสมัครอาจารย์', short: 'ใบสมัคร', badge: pending },
+      { id: 'manage', icon: '🗂️', label: 'จัดการวิชา', short: 'จัดการ' },
+    ] })
+  }
+  groups.push({ title: 'บัญชี', items: [ACCOUNT] })
+  return groups
+}
+
 export default function App() {
   const [session, setSession] = useState(undefined)
   const [profile, setProfile] = useState(null)
+  const [page, setPage] = useState(() => { try { return sessionStorage.getItem('page') } catch { return null } })
+  const [pending, setPending] = useState(0)
+  const [consumed, setConsumed] = useState('')   // ลิงก์ QR ที่ใช้เช็คชื่อไปแล้ว กันทำซ้ำเมื่อสลับหน้า
   const hash = useHash()
 
   useEffect(() => {
@@ -33,6 +62,13 @@ export default function App() {
     supabase.from('profiles').select('*').eq('id', session.user.id).single()
       .then(({ data }) => setProfile(data))
   }, [session])
+
+  async function refreshPending() {
+    const { count } = await supabase.from('profiles').select('id', { count: 'exact', head: true })
+      .eq('role', 'teacher').eq('status', 'pending')
+    setPending(count ?? 0)
+  }
+  useEffect(() => { if (profile?.role === 'admin') refreshPending() }, [profile])
 
   if (session === undefined) return <p className="center">กำลังโหลด…</p>
   if (!session) return <Login />
@@ -54,21 +90,59 @@ export default function App() {
     )
   }
 
-  // ลิงก์จาก QR: #/c/<session_id>/<token>
-  const m = hash.match(/^#\/c\/([0-9a-f-]{36})\/(.+)$/)
+  const isStudent = profile.role === 'student'
+  const groups = navFor(profile.role, pending)
+  const items = groups.flatMap(g => g.items)
+
+  // ลิงก์จาก QR: #/c/<session_id>/<token> (เปิดหน้าเช็คชื่อให้อัตโนมัติ)
+  const m = hash !== consumed ? hash.match(/^#\/c\/([0-9a-f-]{36})\/(.+)$/) : null
+  const scan = isStudent && m ? { session: m[1], token: m[2] } : null
+
+  const current = scan ? 'checkin' : (items.some(i => i.id === page) ? page : items[0].id)
+  const title = items.find(i => i.id === current)?.label ?? ''
+  function go(id) {
+    setPage(id)
+    try { sessionStorage.setItem('page', id) } catch { /* ignore */ }
+  }
+
+  let view
+  if (current === 'account') view = <Account profile={profile} email={session.user.email} />
+  else if (isStudent) view = <Student profile={profile} view={current} scan={scan} onScanDone={() => setConsumed(hash)} />
+  else if (current === 'applicants') view = <Admin onChanged={refreshPending} />
+  else if (current === 'manage') view = <CourseManager />
+  else view = <Teacher profile={profile} />
+
   return (
-    <>
-      <header>
-        <b>เช็คชื่อ</b>
-        <span>{profile.full_name}</span>
-        <button className="logout" onClick={() => supabase.auth.signOut()}>ออกจากระบบ</button>
-      </header>
-      <main>
-        {profile.role === 'student'
-          ? <Student profile={profile} scan={m ? { session: m[1], token: m[2] } : null} />
-          : <>{profile.role === 'admin' && <><Admin /><CourseManager /></>}<Teacher profile={profile} /></>}
-        <ChangePassword />
-      </main>
-    </>
+    <div className="shell">
+      <nav className="side">
+        <div className="brand">✅ เช็คชื่อ</div>
+        <div className="navlist">
+          {groups.map(g => (
+            <div key={g.title}>
+              <div className="navgroup">{g.title}</div>
+              {g.items.map(it => (
+                <button key={it.id} className={'nav-item' + (current === it.id ? ' on' : '')} onClick={() => go(it.id)}>
+                  <span className="ico">{it.icon}</span>
+                  <span className="lbl-long">{it.label}</span>
+                  <span className="lbl-short">{it.short}</span>
+                  {it.badge > 0 && <span className="badge">{it.badge}</span>}
+                </button>
+              ))}
+            </div>
+          ))}
+        </div>
+        <div className="sidefoot">
+          <div className="who">
+            <b>{profile.full_name}</b>
+            <span className="muted">{{ student: 'นักศึกษา', teacher: 'อาจารย์', admin: 'ผู้ดูแลระบบ' }[profile.role]}</span>
+          </div>
+          <button className="signout" onClick={() => supabase.auth.signOut()}>ออกจากระบบ</button>
+        </div>
+      </nav>
+      <div className="content">
+        <header><b>{title}</b><span>{profile.full_name}</span></header>
+        <main>{view}</main>
+      </div>
+    </div>
   )
 }
