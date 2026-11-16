@@ -60,7 +60,7 @@ export default function Login() {
   const isNew = mode !== 'login'
 
   return (
-    <>
+    <div className="auth-wrap">
     <form className="card login" onSubmit={submit}>
       <h1>ระบบเช็คชื่อ</h1>
       <div className="tabs">
@@ -103,6 +103,6 @@ export default function Login() {
       </button>
     </form>
     <InstallCard />
-    </>
+    </div>
   )
 }
