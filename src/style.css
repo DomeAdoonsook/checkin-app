@@ -29,3 +29,6 @@ button.link { background:none; color:var(--pri); width:auto; padding:6px; text-d
 .roster li.absent .row span:last-child { color:var(--bad); }
 .roster .edit { display:grid; gap:6px; }
 details summary { cursor:pointer; padding:6px 0; }
+.ok { color:var(--ok); }
+.reset { border:2px solid var(--warn); }
+.reset .code { font:700 1.6rem monospace; letter-spacing:.1em; margin:8px 0; }

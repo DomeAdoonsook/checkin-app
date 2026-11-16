@@ -27,6 +27,7 @@ function Roster({ session }) {
   const [status, setStatus] = useState('present')
   const [reason, setReason] = useState('')
   const [msg, setMsg] = useState('')
+  const [resetInfo, setResetInfo] = useState(null)   // { code, name } แสดงครั้งเดียว
 
   async function load() {
     const [en, at] = await Promise.all([
@@ -47,11 +48,28 @@ function Roster({ session }) {
     if (error) setMsg(errMsg(error)); else { setEdit(null); setReason(''); load() }
   }
 
+  async function resetAccount(studentCode, name) {
+    if (!confirm(`รีเซ็ตบัญชีของ ${name}?\nรหัสผ่านเดิมจะใช้ไม่ได้ และนักศึกษาต้องเปิดใช้งานใหม่ด้วยรหัสที่จะแสดงให้ครั้งเดียว`)) return
+    setMsg(''); setResetInfo(null)
+    const { data, error } = await supabase.functions.invoke('reset-student', { body: { student_code: studentCode } })
+    if (error || !data?.ok) return setMsg('รีเซ็ตบัญชีไม่สำเร็จ (ต้องเป็นอาจารย์ผู้สอนหลักของวิชานี้)')
+    setResetInfo({ code: data.code, name })
+  }
+
   const count = s => rows.filter(r => r.att?.status === s).length
   return (
     <>
       <p>มา {count('present')} · สาย {count('late')} · รอตรวจ {count('pending')} · ยังไม่เช็ค {rows.filter(r => !r.att).length} / {rows.length}</p>
       {msg && <p className="err">{msg}</p>}
+      {resetInfo && (
+        <div className="card reset">
+          <b>รหัสเปิดใช้งานใหม่ของ {resetInfo.name}</b>
+          <p className="code">{resetInfo.code}</p>
+          <p className="muted">แสดงครั้งเดียว มีอายุ 14 วัน ให้นักศึกษากรอกที่หน้า "ครั้งแรก? เปิดใช้งานบัญชี" แล้วตั้งรหัสผ่านเอง</p>
+          <button className="secondary" onClick={() => navigator.clipboard?.writeText(resetInfo.code)}>คัดลอกรหัส</button>
+          <button className="link" onClick={() => setResetInfo(null)}>ปิด</button>
+        </div>
+      )}
       <ul className="roster">
         {rows.map(r => (
           <li key={r.code} className={r.att ? r.att.status : 'none'}>
@@ -78,7 +96,10 @@ function Roster({ session }) {
                   <button onClick={() => mark(r.code, status, reason)}>บันทึก</button>
                   <button className="link" onClick={() => setEdit(null)}>ยกเลิก</button>
                 </div>
-              : <button className="link" onClick={() => { setEdit(r.code); setStatus('present') }}>เช็คแทน/แก้ไข</button>}
+              : <>
+                  <button className="link" onClick={() => { setEdit(r.code); setStatus('present') }}>เช็คแทน/แก้ไข</button>
+                  <button className="link" onClick={() => resetAccount(r.code, r.name)}>รีเซ็ตบัญชี</button>
+                </>}
           </li>
         ))}
       </ul>

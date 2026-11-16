@@ -3,6 +3,7 @@ import { supabase } from './supabase.js'
 import Login from './Login.jsx'
 import Student from './Student.jsx'
 import Teacher from './Teacher.jsx'
+import ChangePassword from './ChangePassword.jsx'
 
 function useHash() {
   const [h, setH] = useState(location.hash)
@@ -48,6 +49,7 @@ export default function App() {
         {profile.role === 'student'
           ? <Student profile={profile} scan={m ? { session: m[1], token: m[2] } : null} />
           : <Teacher profile={profile} />}
+        <ChangePassword />
       </main>
     </>
   )
