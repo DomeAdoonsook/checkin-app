@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Html5Qrcode } from 'html5-qrcode'
 import { supabase, deviceId, statusLabel, errMsg } from './supabase.js'
+import Icon from './Icon.jsx'
 
 function getPosition() {
   return new Promise((resolve, reject) => {
@@ -28,12 +29,12 @@ async function doCheckIn(sessionId, token, cached) {
 
 function Result({ r, onDone }) {
   const text = {
-    present: ['✅ เช็คชื่อสำเร็จ', 'ok'], late: ['⚠️ เช็คชื่อแล้ว (สาย)', 'warn'],
-    pending: ['⏳ รออาจารย์ตรวจสอบ', 'warn'], duplicate: ['เช็คชื่อไปแล้ว', 'ok'],
-  }[r.status] ?? [r.status, 'ok']
+    present: ['check', 'เช็คชื่อสำเร็จ', 'ok'], late: ['alert', 'เช็คชื่อแล้ว (สาย)', 'warn'],
+    pending: ['clock', 'รออาจารย์ตรวจสอบ', 'warn'], duplicate: ['check', 'เช็คชื่อไปแล้ว', 'ok'],
+  }[r.status] ?? ['check', r.status, 'ok']
   return (
-    <div className={`card result ${text[1]}`}>
-      <h2>{text[0]}</h2>
+    <div className={`card result ${text[2]}`}>
+      <h2><Icon name={text[0]} size={26} /> {text[1]}</h2>
       <button onClick={onDone}>กลับหน้าหลัก</button>
     </div>
   )
@@ -122,18 +123,18 @@ export default function Student({ profile, scan, view = 'checkin', onScanDone })
         {openSessions.length === 0
           ? <p className="muted">ตอนนี้ไม่มีคาบที่เปิดเช็คชื่อ</p>
           : openSessions.map(s => (
-            <p key={s.id}>🟢 {s.sections.courses.code} {s.sections.courses.name ?? ''} (กลุ่ม {s.sections.group_no})</p>
+            <p key={s.id}><span className="dot" /> {s.sections.courses.code} {s.sections.courses.name ?? ''} (กลุ่ม {s.sections.group_no})</p>
           ))}
         {gps === 'denied'
-          ? <p className="err">📍 ไม่ได้รับอนุญาตใช้ตำแหน่ง กรุณาเปิดสิทธิ์ตำแหน่งให้เว็บนี้ในการตั้งค่าเบราว์เซอร์</p>
+          ? <p className="err"><Icon name="pin" size={16} /> ไม่ได้รับอนุญาตใช้ตำแหน่ง กรุณาเปิดสิทธิ์ตำแหน่งให้เว็บนี้ในการตั้งค่าเบราว์เซอร์</p>
           : gps
-            ? <p className="muted">📍 ตำแหน่งพร้อมแล้ว (คลาดเคลื่อนประมาณ {gps.acc} เมตร)</p>
-            : <p className="muted">📍 กำลังหาตำแหน่ง… (กด "อนุญาต" เมื่อเบราว์เซอร์ถาม)</p>}
+            ? <p className="muted"><Icon name="pin" size={16} /> ตำแหน่งพร้อมแล้ว (คลาดเคลื่อนประมาณ {gps.acc} เมตร)</p>
+            : <p className="muted"><Icon name="pin" size={16} /> กำลังหาตำแหน่ง… (กด "อนุญาต" เมื่อเบราว์เซอร์ถาม)</p>}
         {error && <p className="err">{error}</p>}
         {scanning
           ? <><div id="reader" /><button className="secondary" onClick={() => setScanning(false)}>ยกเลิก</button></>
           : <button disabled={busy || openSessions.length === 0} onClick={() => { setError(''); setScanning(true) }}>
-              {busy ? 'กำลังเช็คชื่อ…' : '📷 สแกน QR เพื่อเช็คชื่อ'}
+              {busy ? 'กำลังเช็คชื่อ…' : <><Icon name="camera" size={18} /> สแกน QR เพื่อเช็คชื่อ</>}
             </button>}
       </section>}
 

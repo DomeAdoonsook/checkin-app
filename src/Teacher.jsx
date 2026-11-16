@@ -3,6 +3,7 @@ import QRCode from 'qrcode'
 import { supabase, statusLabel, errMsg } from './supabase.js'
 import Codes from './Codes.jsx'
 import { exportAttendance } from './exportAttendance.js'
+import Icon from './Icon.jsx'
 
 function QrBox({ sessionId }) {
   const [img, setImg] = useState('')
@@ -79,8 +80,8 @@ function Roster({ session }) {
               <span><b>{r.code.slice(-3)}</b> {r.name}</span>
               <span>
                 {r.att ? statusLabel[r.att.status] : '—'}
-                {r.att?.method === 'teacher_manual' && ' ✎'}
-                {r.att?.flagged && ' 🚩'}
+                {r.att?.method === 'teacher_manual' && <Icon name="edit" size={14} />}
+                {r.att?.flagged && <Icon name="flag" size={14} />}
               </span>
             </div>
             {r.att?.status === 'pending' && (
@@ -189,11 +190,11 @@ export default function Teacher() {
             <h2>{sec.courses.code} {sec.courses.name ?? ''}</h2>
             <p className="muted">ภาค {sec.term} · กลุ่ม {sec.group_no}</p>
             <button className="secondary" onClick={() => setCodesFor(codesFor === sec.id ? null : sec.id)}>
-              🔑 รหัสเปิดใช้งานนักศึกษา
+              <Icon name="key" size={18} /> รหัสเปิดใช้งานนักศึกษา
             </button>
             {codesFor === sec.id && <Codes section={sec} />}
             <button className="secondary" disabled={exporting === sec.id} onClick={() => doExport(sec)}>
-              {exporting === sec.id ? 'กำลังสร้างไฟล์…' : '📥 ส่งออกการเข้าเรียน (Excel)'}
+              {exporting === sec.id ? 'กำลังสร้างไฟล์…' : <><Icon name="download" size={18} /> ส่งออกการเข้าเรียน (Excel)</>}
             </button>
             {open
               ? <button onClick={() => setActive(open)}>เปิดหน้าคาบที่กำลังเช็ค</button>
@@ -205,7 +206,7 @@ export default function Teacher() {
                     <input placeholder="รัศมี (เมตร)" type="number" value={geo.radius} onChange={e => setGeo({ ...geo, radius: e.target.value })} />
                     <button className="secondary" onClick={useHere}>ใช้ตำแหน่งปัจจุบัน</button>
                   </details>
-                  <button onClick={() => openSession(sec)}>▶ เปิดคาบเช็คชื่อ</button>
+                  <button onClick={() => openSession(sec)}><Icon name="play" size={16} /> เปิดคาบเช็คชื่อ</button>
                 </>}
           </section>
         )

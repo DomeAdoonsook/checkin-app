@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase, errMsg } from './supabase.js'
 import { fileToText, parseRows, parseFileName } from './parseRoster.js'
 import { exportAttendance } from './exportAttendance.js'
+import Icon from './Icon.jsx'
 
 // หน้าแอดมิน: สร้างวิชา/กลุ่มเรียน + นำเข้ารายชื่อ + มอบหมายอาจารย์
 export default function CourseManager() {
@@ -38,9 +39,9 @@ export default function CourseManager() {
   async function removeSection(s) {
     const code = s.courses.code
     const typed = prompt(
-      `⚠️ ลบวิชา ${code} ${s.courses.name ?? ''} (ภาค ${s.term} กลุ่ม ${s.group_no}) ?\n\n` +
+      `คำเตือน: ลบวิชา ${code} ${s.courses.name ?? ''} (ภาค ${s.term} กลุ่ม ${s.group_no}) ?\n\n` +
       `จะลบถาวร: คาบเรียน การเช็คชื่อทั้งหมด รายชื่อนักศึกษา และการมอบหมายอาจารย์ กู้คืนไม่ได้\n` +
-      `แนะนำให้กด "📥 Excel" สำรองข้อมูลก่อน\n\nพิมพ์รหัสวิชา ${code} เพื่อยืนยัน`)
+      `แนะนำให้กดปุ่ม Excel สำรองข้อมูลก่อน\n\nพิมพ์รหัสวิชา ${code} เพื่อยืนยัน`)
     if (typed === null) return
     if (typed.trim() !== code) return setMsg({ text: 'รหัสวิชาที่พิมพ์ไม่ตรง ยกเลิกการลบ' })
     setMsg(null); setWorking(s.id)
@@ -93,12 +94,12 @@ export default function CourseManager() {
               <span className="muted"> · {s.enrollments?.[0]?.count ?? 0} คน · ผู้สอน: {
                 s.section_teachers.map(t => t.profiles?.full_name).filter(Boolean).join(', ') || 'ยังไม่มี'}</span>
             </div>
-            <button className="link" disabled={working === s.id} onClick={() => backup(s)}>📥 Excel</button>
-            <button className="link danger-link" disabled={working === s.id} onClick={() => removeSection(s)}>🗑 ลบวิชา</button>
+            <button className="link" disabled={working === s.id} onClick={() => backup(s)}><Icon name="download" size={16} /> Excel</button>
+            <button className="link danger-link" disabled={working === s.id} onClick={() => removeSection(s)}><Icon name="trash" size={16} /> ลบวิชา</button>
           </div>
         ))}
       </div>
-      <button className="secondary" onClick={() => setOpen(!open)}>{open ? 'ปิดฟอร์ม' : '＋ เพิ่มวิชา / กลุ่มเรียนใหม่'}</button>
+      <button className="secondary" onClick={() => setOpen(!open)}>{open ? 'ปิดฟอร์ม' : <><Icon name="plus" size={18} /> เพิ่มวิชา / กลุ่มเรียนใหม่</>}</button>
 
       {open && (
         <div className="coursebox">

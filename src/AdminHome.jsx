@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabase.js'
+import Icon from './Icon.jsx'
 
 const count = q => q.then(r => r.count ?? 0)
 const head = { count: 'exact', head: true }
@@ -35,7 +36,7 @@ export default function AdminHome({ onGo }) {
     <>
       {s.pending > 0 && (
         <section className="card alert">
-          <b>📝 มีใบสมัครอาจารย์รออนุมัติ {s.pending} ใบ</b>
+          <b className="withico"><Icon name="file" size={18} /> มีใบสมัครอาจารย์รออนุมัติ {s.pending} ใบ</b>
           <button onClick={() => onGo('applicants')}>ตรวจสอบและอนุมัติ</button>
         </section>
       )}
@@ -52,9 +53,9 @@ export default function AdminHome({ onGo }) {
       </section>
       <section className="card">
         <h2>งานของผู้ดูแลระบบ</h2>
-        <button onClick={() => onGo('applicants')}>📝 ตรวจสอบใบสมัครอาจารย์</button>
-        <button onClick={() => onGo('manage')}>🗂️ สร้าง/ลบวิชา และนำเข้ารายชื่อ</button>
-        <button className="secondary" onClick={() => onGo('courses')}>📚 วิชาที่ฉันสอน (เปิดคาบ / รหัสนักศึกษา / Excel)</button>
+        <button onClick={() => onGo('applicants')}><Icon name="file" size={18} /> ตรวจสอบใบสมัครอาจารย์</button>
+        <button onClick={() => onGo('manage')}><Icon name="folder" size={18} /> สร้าง/ลบวิชา และนำเข้ารายชื่อ</button>
+        <button className="secondary" onClick={() => onGo('courses')}><Icon name="book" size={18} /> วิชาที่ฉันสอน (เปิดคาบ / รหัสนักศึกษา / Excel)</button>
       </section>
     </>
   )

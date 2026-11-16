@@ -85,7 +85,7 @@ export default function App() {
     return (
       <main>
         <section className="card center">
-          <h2>{profile.status === 'pending' ? '⏳ รอแอดมินอนุมัติ' : 'ใบสมัครไม่ได้รับการอนุมัติ'}</h2>
+          <h2>{profile.status === 'pending' ? <><Icon name="clock" size={22} /> รอแอดมินอนุมัติ</> : 'ใบสมัครไม่ได้รับการอนุมัติ'}</h2>
           <p className="muted">
             {profile.status === 'pending'
               ? 'บัญชีของคุณยังไม่ได้รับสิทธิ์ใช้งาน กรุณาลองเข้าสู่ระบบใหม่หลังแอดมินอนุมัติ'

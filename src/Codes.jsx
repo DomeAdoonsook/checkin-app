@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { supabase, errMsg } from './supabase.js'
+import Icon from './Icon.jsx'
 
 // ออกรหัสเปิดใช้งานให้นักศึกษาที่ยังไม่เปิดใช้งานของ section นี้ + ดาวน์โหลด CSV / พิมพ์สลิป
 export default function Codes({ section }) {
@@ -45,8 +46,8 @@ export default function Codes({ section }) {
       {rows !== null && rows.length > 0 && (
         <>
           <p className="err"><b>รหัสแสดงครั้งเดียว</b> ปิดหน้านี้แล้วดูย้อนหลังไม่ได้ ({rows.length} คน)</p>
-          <button onClick={downloadCsv}>⬇ ดาวน์โหลด CSV</button>
-          <button className="secondary" onClick={() => window.print()}>🖨 พิมพ์สลิป</button>
+          <button onClick={downloadCsv}><Icon name="download" size={18} /> ดาวน์โหลด CSV</button>
+          <button className="secondary" onClick={() => window.print()}><Icon name="printer" size={18} /> พิมพ์สลิป</button>
           <table className="codetable">
             <thead><tr><th>รหัส</th><th>ชื่อ</th><th>รหัสเปิดใช้งาน</th></tr></thead>
             <tbody>
