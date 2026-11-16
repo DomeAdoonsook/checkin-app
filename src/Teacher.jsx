@@ -116,8 +116,13 @@ export default function Teacher() {
   const [active, setActive] = useState(null)
   const [codesFor, setCodesFor] = useState(null)   // section id ที่เปิดแผงออกรหัส
   const [exporting, setExporting] = useState(null) // section id ที่กำลังส่งออก Excel
-  const [geo, setGeo] = useState({ lat: '', lng: '', radius: 25 })
+  const [geos, setGeos] = useState({})            // ค่าที่กำลังแก้ต่อกลุ่มเรียน (ยังไม่บันทึก)
   const [msg, setMsg] = useState('')
+  const [note, setNote] = useState('')
+
+  // ตำแหน่งที่ใช้เปิดคาบ = ที่กำลังแก้ ถ้าไม่มีใช้ "ตำแหน่งประจำวิชา" ที่บันทึกไว้
+  const geoOf = sec => ({ lat: sec.default_lat ?? '', lng: sec.default_lng ?? '', radius: sec.default_radius_m ?? 25, ...(geos[sec.id] ?? {}) })
+  const setGeoOf = (sec, patch) => setGeos(p => ({ ...p, [sec.id]: { ...geoOf(sec), ...patch } }))
 
   async function load() {
     // เฉพาะวิชาที่ตัวเองเป็นผู้สอน (แอดมินจะไม่เห็นวิชาของคนอื่นปนในหน้านี้)
@@ -138,20 +143,39 @@ export default function Teacher() {
     setExporting(null)
   }
 
-  function useHere() {
+  function useHere(sec) {
+    setMsg(''); setNote('')
     navigator.geolocation.getCurrentPosition(
-      p => setGeo(g => ({ ...g, lat: p.coords.latitude.toFixed(6), lng: p.coords.longitude.toFixed(6) })),
-      () => setMsg('อ่านตำแหน่งไม่ได้'), { enableHighAccuracy: true })
+      p => setGeoOf(sec, { lat: p.coords.latitude.toFixed(6), lng: p.coords.longitude.toFixed(6) }),
+      () => setMsg('อ่านตำแหน่งไม่ได้ (ตรวจสอบว่าอนุญาตตำแหน่งให้เว็บนี้แล้ว)'), { enableHighAccuracy: true })
+  }
+
+  // บันทึก (หรือล้าง) ตำแหน่งประจำวิชา ให้คาบถัดไปใช้อัตโนมัติ
+  async function saveLocation(sec, clear = false) {
+    setMsg(''); setNote('')
+    const g = geoOf(sec)
+    const lat = clear ? null : parseFloat(g.lat)
+    const lng = clear ? null : parseFloat(g.lng)
+    if (!clear && (!isFinite(lat) || !isFinite(lng))) return setMsg('กรุณาใส่ละติจูด/ลองจิจูดให้ถูกต้อง หรือกด "ใช้ตำแหน่งปัจจุบัน"')
+    const { error } = await supabase.rpc('set_section_location', {
+      p_section: sec.id, p_lat: lat, p_lng: lng, p_radius: clear ? null : (parseInt(g.radius, 10) || 25),
+    })
+    if (error) return setMsg(errMsg(error))
+    setGeos(p => { const n = { ...p }; delete n[sec.id]; return n })
+    await load()
+    setNote(clear ? 'ล้างตำแหน่งประจำวิชาแล้ว (คาบถัดไปจะไม่ตรวจระยะ)' : 'บันทึกตำแหน่งประจำวิชาแล้ว คาบถัดไปจะใช้ค่านี้อัตโนมัติ')
   }
 
   async function openSession(sec) {
     setMsg('')
-    const hasGeo = geo.lat !== '' && geo.lng !== ''
+    const g = geoOf(sec)
+    const hasGeo = g.lat !== '' && g.lng !== '' && g.lat != null
+    if (hasGeo && (!isFinite(+g.lat) || !isFinite(+g.lng))) return setMsg('ละติจูด/ลองจิจูดไม่ถูกต้อง')
     const { data, error } = await supabase.from('class_sessions').insert({
       section_id: sec.id, opened_by: (await supabase.auth.getUser()).data.user.id,
       late_after: new Date(Date.now() + 15 * 60000).toISOString(),   // เกิน 15 นาที = สาย
-      lat: hasGeo ? +geo.lat : sec.default_lat, lng: hasGeo ? +geo.lng : sec.default_lng,
-      radius_m: +geo.radius || sec.default_radius_m || 25,
+      lat: hasGeo ? +g.lat : null, lng: hasGeo ? +g.lng : null,
+      radius_m: +g.radius || 25,
     }).select().single()
     if (error) return setMsg(errMsg(error))
     await load(); setActive(data)
@@ -182,6 +206,7 @@ export default function Teacher() {
   return (
     <>
       {msg && <p className="err">{msg}</p>}
+      {note && <p className="ok">{note}</p>}
       {sections.length === 0 && <p className="card muted">ยังไม่มีวิชาที่คุณสอน ไปที่เมนู "เพิ่มรายวิชา" (หรือ "จัดการวิชา") เพื่อเพิ่มวิชาและนำเข้ารายชื่อนักศึกษา</p>}
       {sections.map(sec => {
         const open = sessions.find(s => s.section_id === sec.id)
@@ -199,12 +224,21 @@ export default function Teacher() {
             {open
               ? <button onClick={() => setActive(open)}>เปิดหน้าคาบที่กำลังเช็ค</button>
               : <>
-                  <details>
-                    <summary>ตั้งค่าตำแหน่ง (ไม่บังคับ)</summary>
-                    <label>ละติจูด (เช่น 13.7563)<input placeholder="13.7563" value={geo.lat} onChange={e => setGeo({ ...geo, lat: e.target.value })} /></label>
-                    <label>ลองจิจูด (เช่น 100.5018)<input placeholder="100.5018" value={geo.lng} onChange={e => setGeo({ ...geo, lng: e.target.value })} /></label>
-                    <label>รัศมีที่อนุญาต (เมตร) — นักศึกษาต้องอยู่ห่างจากจุดนี้ไม่เกินระยะนี้ (ค่าเริ่มต้น 25 — GPS ในอาคารมักคลาดเคลื่อน 20–50 ม. ควรทดสอบก่อน)<input placeholder="25" type="number" min="10" value={geo.radius} onChange={e => setGeo({ ...geo, radius: e.target.value })} /></label>
-                    <button className="secondary" onClick={useHere}>ใช้ตำแหน่งปัจจุบัน</button>
+                  <details open={sec.default_lat == null}>
+                    <summary>
+                      ตำแหน่งเช็คชื่อ: {sec.default_lat != null
+                        ? `ตั้งไว้แล้ว (รัศมี ${sec.default_radius_m} ม.)`
+                        : 'ยังไม่ได้ตั้ง (ไม่ตรวจระยะ)'}
+                    </summary>
+                    {(() => { const g = geoOf(sec); return (<>
+                      <label>ละติจูด (เช่น 13.7563)<input placeholder="13.7563" value={g.lat} onChange={e => setGeoOf(sec, { lat: e.target.value })} /></label>
+                      <label>ลองจิจูด (เช่น 100.5018)<input placeholder="100.5018" value={g.lng} onChange={e => setGeoOf(sec, { lng: e.target.value })} /></label>
+                      <label>รัศมีที่อนุญาต (เมตร) — นักศึกษาต้องอยู่ห่างจากจุดนี้ไม่เกินระยะนี้ (ค่าเริ่มต้น 25 — GPS ในอาคารมักคลาดเคลื่อน 20–50 ม. ควรทดสอบก่อน)<input placeholder="25" type="number" min="10" value={g.radius} onChange={e => setGeoOf(sec, { radius: e.target.value })} /></label>
+                    </>) })()}
+                    <button className="secondary" onClick={() => useHere(sec)}><Icon name="pin" size={18} /> ใช้ตำแหน่งปัจจุบัน</button>
+                    <button onClick={() => saveLocation(sec)}>บันทึกเป็นตำแหน่งประจำวิชา</button>
+                    {sec.default_lat != null && <button className="link" onClick={() => saveLocation(sec, true)}>ล้างตำแหน่งประจำวิชา</button>}
+                    <p className="muted">กดบันทึกครั้งเดียว คาบถัดไปจะใช้ตำแหน่งและรัศมีนี้อัตโนมัติ (ถ้าแก้ค่าโดยไม่กดบันทึก จะใช้เฉพาะคาบที่เปิดตอนนี้)</p>
                   </details>
                   <button onClick={() => openSession(sec)}><Icon name="play" size={16} /> เปิดคาบเช็คชื่อ</button>
                 </>}
