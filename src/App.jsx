@@ -5,6 +5,7 @@ import Student from './Student.jsx'
 import Teacher from './Teacher.jsx'
 import ChangePassword from './ChangePassword.jsx'
 import Admin from './Admin.jsx'
+import CourseManager from './CourseManager.jsx'
 
 function useHash() {
   const [h, setH] = useState(location.hash)
@@ -65,7 +66,7 @@ export default function App() {
       <main>
         {profile.role === 'student'
           ? <Student profile={profile} scan={m ? { session: m[1], token: m[2] } : null} />
-          : <>{profile.role === 'admin' && <Admin />}<Teacher profile={profile} /></>}
+          : <>{profile.role === 'admin' && <><Admin /><CourseManager /></>}<Teacher profile={profile} /></>}
         <ChangePassword />
       </main>
     </>

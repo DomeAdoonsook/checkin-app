@@ -117,11 +117,15 @@ export default function Teacher() {
   const [msg, setMsg] = useState('')
 
   async function load() {
-    const [s, c] = await Promise.all([
-      supabase.from('sections').select('id, term, group_no, default_lat, default_lng, default_radius_m, courses(code, name)'),
+    // เฉพาะวิชาที่ตัวเองเป็นผู้สอน (แอดมินจะไม่เห็นวิชาของคนอื่นปนในหน้านี้)
+    const { data: { session } } = await supabase.auth.getSession()
+    const [s0, c] = await Promise.all([
+      supabase.from('section_teachers')
+        .select('sections(id, term, group_no, default_lat, default_lng, default_radius_m, courses(code, name))')
+        .eq('teacher_id', session.user.id),
       supabase.from('class_sessions').select('*').is('closed_at', null).order('opened_at', { ascending: false }),
     ])
-    setSections(s.data ?? []); setSessions(c.data ?? [])
+    setSections((s0.data ?? []).map(r => r.sections).filter(Boolean)); setSessions(c.data ?? [])
   }
   useEffect(() => { load() }, [])
 
