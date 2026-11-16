@@ -182,7 +182,7 @@ export default function Teacher() {
   return (
     <>
       {msg && <p className="err">{msg}</p>}
-      {sections.length === 0 && <p className="card muted">ยังไม่มีวิชาที่คุณสอน (ให้แอดมินเพิ่มใน section_teachers)</p>}
+      {sections.length === 0 && <p className="card muted">ยังไม่มีวิชาที่คุณสอน ไปที่เมนู "เพิ่มรายวิชา" (หรือ "จัดการวิชา") เพื่อเพิ่มวิชาและนำเข้ารายชื่อนักศึกษา</p>}
       {sections.map(sec => {
         const open = sessions.find(s => s.section_id === sec.id)
         return (
