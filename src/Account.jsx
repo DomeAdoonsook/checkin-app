@@ -10,7 +10,7 @@ export default function Account({ profile, email }) {
       <section className="card">
         <h2>{profile.full_name}</h2>
         <p className="muted">{ROLE[profile.role]}{login ? ` · ${login}` : ''}</p>
-        <button className="danger" onClick={() => supabase.auth.signOut()}>ออกจากระบบ</button>
+        <button className="danger only-mobile" onClick={() => supabase.auth.signOut()}>ออกจากระบบ</button>
       </section>
       <ChangePassword defaultOpen />
     </>
