@@ -8,6 +8,7 @@
 <link rel="icon" href="./icon.svg" />
 <title>เช็คชื่อ</title>
 </head>
-<body><script>(function(){function show(m){var r=document.getElementById("root");if(r&&!r.children.length){r.innerHTML="<pre style=\"white-space:pre-wrap;padding:16px;color:#b91c1c;font:14px monospace\">เกิดข้อผิดพลาด (ส่งภาพนี้ให้ผู้พัฒนา):
-"+String(m).replace(/</g,"&lt;")+"</pre>"}}window.addEventListener("error",function(e){show(e.message+" @"+(e.filename||"").split("/").pop()+":"+e.lineno)});window.addEventListener("unhandledrejection",function(e){show("promise: "+(e.reason&&e.reason.message||e.reason))});setTimeout(function(){var r=document.getElementById("root");if(r&&!r.children.length)show("หน้าไม่แสดงผลหลัง 6 วินาที | "+navigator.userAgent)},6000)})()</script><div id="root"></div><script type="module" src="/src/main.jsx"></script></body>
+<body><script>(function(){function show(m){var d=document.getElementById("errbox");if(!d){d=document.createElement("pre");d.id="errbox";d.style.cssText="position:fixed;z-index:99999;left:0;right:0;top:0;margin:0;white-space:pre-wrap;padding:12px;background:#fff;color:#b91c1c;font:13px monospace;border-bottom:3px solid #b91c1c;max-height:60vh;overflow:auto";d.textContent="เกิดข้อผิดพลาด (ส่งภาพนี้ให้ผู้พัฒนา):
+";document.body.appendChild(d)}d.textContent+=String(m)+"
+"}window.__showErr=show;window.addEventListener("error",function(e){show(e.message+" @"+(e.filename||"").split("/").pop()+":"+e.lineno)});window.addEventListener("unhandledrejection",function(e){show("promise: "+(e.reason&&e.reason.message||e.reason))});setTimeout(function(){var r=document.getElementById("root");if(r&&!r.children.length)show("หน้าไม่แสดงผลหลัง 6 วินาที | "+navigator.userAgent)},6000)})()</script><div id="root"></div><script type="module" src="/src/main.jsx"></script></body>
 </html>

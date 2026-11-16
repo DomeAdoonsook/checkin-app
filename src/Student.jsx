@@ -39,7 +39,7 @@ function Result({ r, onDone }) {
 
 export default function Student({ profile, scan }) {
   const [openSessions, setOpen] = useState([])
-  const [history, setHistory] = useState([])
+  const [records, setRecords] = useState([])
   const [result, setResult] = useState(null)
   const [error, setError] = useState('')
   const [scanning, setScanning] = useState(false)
@@ -55,7 +55,7 @@ export default function Student({ profile, scan }) {
         .select('status, method, checked_at, class_sessions(opened_at, sections(courses(code, name)))')
         .order('checked_at', { ascending: false }).limit(60),
     ])
-    setOpen(s.data ?? []); setHistory(h.data ?? [])
+    setOpen(s.data ?? []); setRecords(h.data ?? [])
   }
   useEffect(() => { load() }, [])
 
@@ -93,7 +93,7 @@ export default function Student({ profile, scan }) {
 
   // สรุปต่อวิชา
   const byCourse = {}
-  for (const a of history) {
+  for (const a of records) {
     const c = a.class_sessions?.sections?.courses
     const k = c ? `${c.code} ${c.name ?? ''}` : '—'
     ;(byCourse[k] ??= []).push(a)
