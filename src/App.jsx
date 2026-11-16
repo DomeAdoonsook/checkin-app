@@ -33,14 +33,14 @@ function navFor(role, pending) {
     ]
   }
   if (role === 'admin') {
-    // แอดมิน: เริ่มที่หน้าผู้ดูแลระบบ ส่วนงานสอนอยู่ถัดลงมา
+    // แอดมิน: งานสอนอยู่บนสุด (หน้าแรก) ตามด้วยกลุ่มผู้ดูแลระบบ
     return [
+      { title: 'การสอน', items: [{ id: 'courses', icon: 'book', label: 'วิชาที่ฉันสอน', short: 'วิชา' }] },
       { title: 'ผู้ดูแลระบบ', items: [
         { id: 'overview', icon: 'home', label: 'ภาพรวม', short: 'ภาพรวม' },
         { id: 'applicants', icon: 'file', label: 'ใบสมัครอาจารย์', short: 'ใบสมัคร', badge: pending },
         { id: 'manage', icon: 'folder', label: 'จัดการวิชา', short: 'จัดการ' },
       ] },
-      { title: 'การสอน', items: [{ id: 'courses', icon: 'book', label: 'วิชาที่ฉันสอน', short: 'วิชา' }] },
       { title: 'บัญชี', items: [ACCOUNT] },
     ]
   }
