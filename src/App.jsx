@@ -60,7 +60,7 @@ export default function App() {
       <header>
         <b>เช็คชื่อ</b>
         <span>{profile.full_name}</span>
-        <button className="link" onClick={() => supabase.auth.signOut()}>ออก</button>
+        <button className="logout" onClick={() => supabase.auth.signOut()}>ออกจากระบบ</button>
       </header>
       <main>
         {profile.role === 'student'
