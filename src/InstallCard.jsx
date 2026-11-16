@@ -10,7 +10,7 @@ export default function InstallCard() {
   const ios = /iPad|iPhone|iPod/.test(navigator.userAgent)
 
   useEffect(() => {
-    QRCode.toDataURL(url, { width: 360, margin: 1 }).then(setQr).catch(() => {})
+    QRCode.toDataURL(url, { width: 640, margin: 1 }).then(setQr).catch(() => {})
     const onPrompt = e => { e.preventDefault(); setEvt(e) }
     addEventListener('beforeinstallprompt', onPrompt)
     return () => removeEventListener('beforeinstallprompt', onPrompt)
