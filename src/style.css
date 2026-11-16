@@ -143,3 +143,12 @@ button.only-mobile { display:none; }
 .install-row { flex-direction:column; text-align:center; gap:10px; }
 .installqr { width:260px; height:260px; padding:8px; border:1px solid #8884; }
 .install-row p { max-width:300px; }
+
+/* โลโก้ MJU Check (ฟอนต์ Baloo 2 แบบเดียวกับ MJU Workspace, สัญญาอนุญาต OFL) */
+@font-face { font-family:"Baloo 2"; src:url("./assets/fonts/Baloo2-subset.woff2") format("woff2"); font-weight:400 800; font-display:swap; }
+.logo-wrap { display:inline-flex; align-items:center; }
+.logo-wrap svg { display:block; flex:none; }
+.logo-text { font-family:"Baloo 2","Segoe UI",system-ui,sans-serif; font-weight:600; line-height:1.1; color:var(--fg); letter-spacing:0; }
+.brand .logo-text { color:var(--fg); }
+.brand { padding:8px 6px 12px; }
+.login-title { margin:6px 0 14px; }

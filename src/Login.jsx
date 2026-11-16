@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { supabase, errMsg } from './supabase.js'
 import InstallCard from './InstallCard.jsx'
+import Logo from './Logo.jsx'
 
 const TABS = [
   ['login', 'เข้าสู่ระบบ'],
@@ -62,7 +63,7 @@ export default function Login() {
   return (
     <div className="auth-wrap">
     <form className="card login" onSubmit={submit}>
-      <h1>MJU Check</h1>
+      <h1 className="login-title"><Logo size={40} /></h1>
       <div className="tabs">
         {TABS.map(([k, label]) => (
           <button type="button" key={k} className={mode === k ? 'tab on' : 'tab'} onClick={() => go(k)}>{label}</button>

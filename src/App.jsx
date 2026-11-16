@@ -8,6 +8,7 @@ import Admin from './Admin.jsx'
 import CourseManager from './CourseManager.jsx'
 import AdminHome from './AdminHome.jsx'
 import Icon from './Icon.jsx'
+import Logo from './Logo.jsx'
 
 function useHash() {
   const [h, setH] = useState(location.hash)
@@ -128,7 +129,7 @@ export default function App() {
   return (
     <div className="shell">
       <nav className="side">
-        <div className="brand"><Icon name="check" size={24} /> MJU Check</div>
+        <div className="brand"><Logo size={22} /></div>
         <div className="navlist">
           {groups.map(g => (
             <div key={g.title}>
