@@ -165,3 +165,6 @@ button.only-mobile { display:none; }
   .hdr-logo { display:block; background:#fff; border-radius:12px; padding:4px 10px 3px; flex:none; }
   .content header b { margin-left:auto; text-align:right; }
 }
+
+.mode-title { margin:4px 0 8px; font-size:1.15rem; }
+.switch-hint { margin:18px 0 4px; font-size:.85rem; text-align:center; }

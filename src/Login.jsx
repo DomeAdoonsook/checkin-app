@@ -3,12 +3,6 @@ import { supabase, errMsg } from './supabase.js'
 import InstallCard from './InstallCard.jsx'
 import Logo from './Logo.jsx'
 
-const TABS = [
-  ['login', 'เข้าสู่ระบบ'],
-  ['activate', 'นักศึกษา: ลงทะเบียนครั้งแรก'],
-  ['teacher', 'อาจารย์: สมัครใช้งาน'],
-]
-
 export default function Login() {
   const [mode, setMode] = useState('login')   // login | activate | teacher
   const [id, setId] = useState('')
@@ -64,11 +58,7 @@ export default function Login() {
     <div className="auth-wrap">
     <form className="card login" onSubmit={submit}>
       <h1 className="login-title"><Logo size={40} /></h1>
-      <div className="tabs">
-        {TABS.map(([k, label]) => (
-          <button type="button" key={k} className={mode === k ? 'tab on' : 'tab'} onClick={() => go(k)}>{label}</button>
-        ))}
-      </div>
+      {mode !== 'login' && <h2 className="mode-title">{mode === 'activate' ? 'ลงทะเบียนนักศึกษา (ครั้งแรก)' : 'สมัครใช้งานสำหรับอาจารย์'}</h2>}
 
       {mode === 'teacher' && (
         <label>ชื่อ-นามสกุล (พร้อมคำนำหน้า)
@@ -102,6 +92,18 @@ export default function Login() {
       <button disabled={busy}>
         {mode === 'login' ? 'เข้าสู่ระบบ' : mode === 'activate' ? 'ลงทะเบียน' : 'ส่งใบสมัคร'}
       </button>
+
+      {mode === 'login' ? (
+        <>
+          <p className="muted switch-hint">ยังไม่มีบัญชี?</p>
+          <div className="tabs">
+            <button type="button" className="tab" onClick={() => go('activate')}>นักศึกษา: ลงทะเบียนครั้งแรก</button>
+            <button type="button" className="tab" onClick={() => go('teacher')}>อาจารย์: สมัครใช้งาน</button>
+          </div>
+        </>
+      ) : (
+        <button type="button" className="link" onClick={() => go('login')}>← กลับไปเข้าสู่ระบบ</button>
+      )}
     </form>
     <InstallCard />
     </div>
