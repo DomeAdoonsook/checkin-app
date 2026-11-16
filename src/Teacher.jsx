@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import QRCode from 'qrcode'
 import { supabase, statusLabel, errMsg } from './supabase.js'
 import Codes from './Codes.jsx'
+import { exportAttendance } from './exportAttendance.js'
 
 function QrBox({ sessionId }) {
   const [img, setImg] = useState('')
@@ -113,6 +114,7 @@ export default function Teacher() {
   const [sessions, setSessions] = useState([])
   const [active, setActive] = useState(null)
   const [codesFor, setCodesFor] = useState(null)   // section id ที่เปิดแผงออกรหัส
+  const [exporting, setExporting] = useState(null) // section id ที่กำลังส่งออก Excel
   const [geo, setGeo] = useState({ lat: '', lng: '', radius: 100 })
   const [msg, setMsg] = useState('')
 
@@ -128,6 +130,12 @@ export default function Teacher() {
     setSections((s0.data ?? []).map(r => r.sections).filter(Boolean)); setSessions(c.data ?? [])
   }
   useEffect(() => { load() }, [])
+
+  async function doExport(sec) {
+    setMsg(''); setExporting(sec.id)
+    try { await exportAttendance(sec) } catch (e) { setMsg('ส่งออกไม่สำเร็จ: ' + errMsg(e)) }
+    setExporting(null)
+  }
 
   function useHere() {
     navigator.geolocation.getCurrentPosition(
@@ -184,6 +192,9 @@ export default function Teacher() {
               🔑 รหัสเปิดใช้งานนักศึกษา
             </button>
             {codesFor === sec.id && <Codes section={sec} />}
+            <button className="secondary" disabled={exporting === sec.id} onClick={() => doExport(sec)}>
+              {exporting === sec.id ? 'กำลังสร้างไฟล์…' : '📥 ส่งออกการเข้าเรียน (Excel)'}
+            </button>
             {open
               ? <button onClick={() => setActive(open)}>เปิดหน้าคาบที่กำลังเช็ค</button>
               : <>
