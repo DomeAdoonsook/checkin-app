@@ -96,9 +96,9 @@ export default function Login() {
       {mode === 'login' ? (
         <>
           <p className="muted switch-hint">ยังไม่มีบัญชี?</p>
-          <div className="tabs">
-            <button type="button" className="tab" onClick={() => go('activate')}>นักศึกษา: ลงทะเบียนครั้งแรก</button>
-            <button type="button" className="tab" onClick={() => go('teacher')}>อาจารย์: สมัครใช้งาน</button>
+          <div className="switch-links">
+            <button type="button" className="textlink" onClick={() => go('activate')}>นักศึกษา: ลงทะเบียนครั้งแรก</button>
+            <button type="button" className="textlink" onClick={() => go('teacher')}>อาจารย์: สมัครใช้งาน</button>
           </div>
         </>
       ) : (

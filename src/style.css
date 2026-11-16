@@ -168,3 +168,9 @@ button.only-mobile { display:none; }
 
 .mode-title { margin:4px 0 8px; font-size:1.15rem; }
 .switch-hint { margin:18px 0 4px; font-size:.85rem; text-align:center; }
+
+/* ลิงก์สมัคร/ลงทะเบียนใต้ปุ่มเข้าสู่ระบบ: ตัวอักษรเทาแบบเดียวกับ "ยังไม่มีบัญชี?" */
+.switch-links { display:flex; flex-wrap:wrap; justify-content:center; gap:2px 16px; }
+button.textlink { width:auto; margin:0; padding:4px 2px; background:none; color:var(--mut); font-size:.85rem; text-decoration:underline; }
+button.textlink:hover { color:var(--pri); }
+.switch-hint { margin:16px 0 2px; }
