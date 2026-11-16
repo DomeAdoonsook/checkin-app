@@ -109,3 +109,8 @@ p svg, b svg { vertical-align:-3px; margin-right:2px; }
 .withico { display:inline-flex; align-items:center; gap:8px; }
 .result h2 { display:flex; align-items:center; gap:10px; }
 .dot { display:inline-block; width:10px; height:10px; border-radius:50%; background:var(--ok); margin-right:6px; }
+
+/* เมนูข้างชิดซ้าย (กฎ button กลางหน้าไม่ให้ทับ) */
+.nav-item { justify-content:flex-start; }
+button.stat { justify-content:flex-start; align-items:flex-start; }
+@media (max-width: 820px) { .nav-item { justify-content:center; } }
