@@ -116,7 +116,7 @@ export default function Teacher() {
   const [active, setActive] = useState(null)
   const [codesFor, setCodesFor] = useState(null)   // section id ที่เปิดแผงออกรหัส
   const [exporting, setExporting] = useState(null) // section id ที่กำลังส่งออก Excel
-  const [geo, setGeo] = useState({ lat: '', lng: '', radius: 100 })
+  const [geo, setGeo] = useState({ lat: '', lng: '', radius: 25 })
   const [msg, setMsg] = useState('')
 
   async function load() {
@@ -151,7 +151,7 @@ export default function Teacher() {
       section_id: sec.id, opened_by: (await supabase.auth.getUser()).data.user.id,
       late_after: new Date(Date.now() + 15 * 60000).toISOString(),   // เกิน 15 นาที = สาย
       lat: hasGeo ? +geo.lat : sec.default_lat, lng: hasGeo ? +geo.lng : sec.default_lng,
-      radius_m: +geo.radius || sec.default_radius_m || 100,
+      radius_m: +geo.radius || sec.default_radius_m || 25,
     }).select().single()
     if (error) return setMsg(errMsg(error))
     await load(); setActive(data)
@@ -203,7 +203,7 @@ export default function Teacher() {
                     <summary>ตั้งค่าตำแหน่ง (ไม่บังคับ)</summary>
                     <label>ละติจูด (เช่น 13.7563)<input placeholder="13.7563" value={geo.lat} onChange={e => setGeo({ ...geo, lat: e.target.value })} /></label>
                     <label>ลองจิจูด (เช่น 100.5018)<input placeholder="100.5018" value={geo.lng} onChange={e => setGeo({ ...geo, lng: e.target.value })} /></label>
-                    <label>รัศมีที่อนุญาต (เมตร) — นักศึกษาต้องอยู่ห่างจากจุดนี้ไม่เกินระยะนี้ (แนะนำ 50–100)<input placeholder="100" type="number" min="10" value={geo.radius} onChange={e => setGeo({ ...geo, radius: e.target.value })} /></label>
+                    <label>รัศมีที่อนุญาต (เมตร) — นักศึกษาต้องอยู่ห่างจากจุดนี้ไม่เกินระยะนี้ (ค่าเริ่มต้น 25 — GPS ในอาคารมักคลาดเคลื่อน 20–50 ม. ควรทดสอบก่อน)<input placeholder="25" type="number" min="10" value={geo.radius} onChange={e => setGeo({ ...geo, radius: e.target.value })} /></label>
                     <button className="secondary" onClick={useHere}>ใช้ตำแหน่งปัจจุบัน</button>
                   </details>
                   <button onClick={() => openSession(sec)}><Icon name="play" size={16} /> เปิดคาบเช็คชื่อ</button>
