@@ -13,8 +13,10 @@ function getPosition() {
   })
 }
 
-async function doCheckIn(sessionId, token) {
-  const pos = await getPosition()
+// ใช้ตำแหน่งที่เตรียมไว้ล่วงหน้า (ไม่เก่าเกิน 60 วินาที) เพื่อให้หลังสแกนส่งได้ทันที ไม่ต้องรอ GPS
+async function doCheckIn(sessionId, token, cached) {
+  const fresh = cached && Date.now() - cached.t < 60000
+  const pos = fresh ? cached.coords : await getPosition()
   const { data, error } = await supabase.rpc('check_in', {
     p_session: sessionId, p_token: token,
     p_lat: pos.latitude, p_lng: pos.longitude, p_accuracy: pos.accuracy,
@@ -45,6 +47,19 @@ export default function Student({ profile, scan, view = 'checkin', onScanDone })
   const [scanning, setScanning] = useState(false)
   const [busy, setBusy] = useState(false)
   const handled = useRef(false)
+  const posRef = useRef(null)                 // ตำแหน่งล่าสุดที่เตรียมไว้
+  const [gps, setGps] = useState(null)        // { acc } เมื่อพร้อม | 'denied' เมื่อไม่ได้รับอนุญาต
+
+  // เปิดหน้าเช็คชื่อแล้วเริ่มหาตำแหน่งทันที (ก่อนสแกน) ปิดเมื่อออกจากหน้า
+  useEffect(() => {
+    if (view !== 'checkin' || !navigator.geolocation) return
+    const id = navigator.geolocation.watchPosition(
+      p => { posRef.current = { coords: p.coords, t: Date.now() }; setGps({ acc: Math.round(p.coords.accuracy) }) },
+      e => { if (e.code === 1) setGps('denied') },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 },
+    )
+    return () => navigator.geolocation.clearWatch(id)
+  }, [view])
 
   async function load() {
     const [s, h] = await Promise.all([
@@ -61,7 +76,7 @@ export default function Student({ profile, scan, view = 'checkin', onScanDone })
 
   async function submit(sessionId, token) {
     setBusy(true); setError('')
-    try { setResult(await doCheckIn(sessionId, token)); load() }
+    try { setResult(await doCheckIn(sessionId, token, posRef.current)); load() }
     catch (e) { setError(errMsg(e)) }
     setBusy(false)
   }
@@ -109,6 +124,11 @@ export default function Student({ profile, scan, view = 'checkin', onScanDone })
           : openSessions.map(s => (
             <p key={s.id}>🟢 {s.sections.courses.code} {s.sections.courses.name ?? ''} (กลุ่ม {s.sections.group_no})</p>
           ))}
+        {gps === 'denied'
+          ? <p className="err">📍 ไม่ได้รับอนุญาตใช้ตำแหน่ง กรุณาเปิดสิทธิ์ตำแหน่งให้เว็บนี้ในการตั้งค่าเบราว์เซอร์</p>
+          : gps
+            ? <p className="muted">📍 ตำแหน่งพร้อมแล้ว (คลาดเคลื่อนประมาณ {gps.acc} เมตร)</p>
+            : <p className="muted">📍 กำลังหาตำแหน่ง… (กด "อนุญาต" เมื่อเบราว์เซอร์ถาม)</p>}
         {error && <p className="err">{error}</p>}
         {scanning
           ? <><div id="reader" /><button className="secondary" onClick={() => setScanning(false)}>ยกเลิก</button></>
