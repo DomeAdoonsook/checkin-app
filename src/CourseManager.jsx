@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase, errMsg } from './supabase.js'
 import { fileToText, parseRows, parseFileName } from './parseRoster.js'
+import { exportAttendance } from './exportAttendance.js'
 
 // หน้าแอดมิน: สร้างวิชา/กลุ่มเรียน + นำเข้ารายชื่อ + มอบหมายอาจารย์
 export default function CourseManager() {
@@ -12,6 +13,7 @@ export default function CourseManager() {
   const [fileName, setFileName] = useState('')
   const [msg, setMsg] = useState(null)   // { ok, text }
   const [busy, setBusy] = useState(false)
+  const [working, setWorking] = useState(null)   // section id ที่กำลังส่งออก/ลบ
 
   const { rows, skipped } = parseRows(text)
 
@@ -25,6 +27,31 @@ export default function CourseManager() {
     setTeachers(t.data ?? []); setSections(s.data ?? [])
   }
   useEffect(() => { load() }, [])
+
+  async function backup(s) {
+    setMsg(null); setWorking(s.id)
+    try { await exportAttendance(s) } catch (e) { setMsg({ text: 'ส่งออกไม่สำเร็จ: ' + errMsg(e) }) }
+    setWorking(null)
+  }
+
+  // ลบกลุ่มเรียนพร้อมข้อมูลทั้งหมด (ต้องพิมพ์รหัสวิชายืนยัน) ย้อนกลับไม่ได้
+  async function removeSection(s) {
+    const code = s.courses.code
+    const typed = prompt(
+      `⚠️ ลบวิชา ${code} ${s.courses.name ?? ''} (ภาค ${s.term} กลุ่ม ${s.group_no}) ?\n\n` +
+      `จะลบถาวร: คาบเรียน การเช็คชื่อทั้งหมด รายชื่อนักศึกษา และการมอบหมายอาจารย์ กู้คืนไม่ได้\n` +
+      `แนะนำให้กด "📥 Excel" สำรองข้อมูลก่อน\n\nพิมพ์รหัสวิชา ${code} เพื่อยืนยัน`)
+    if (typed === null) return
+    if (typed.trim() !== code) return setMsg({ text: 'รหัสวิชาที่พิมพ์ไม่ตรง ยกเลิกการลบ' })
+    setMsg(null); setWorking(s.id)
+    const { data, error } = await supabase.rpc('admin_delete_section', { p_section: s.id })
+    setWorking(null)
+    if (error) return setMsg({ text: errMsg(error) })
+    setMsg({ ok: true, text: `ลบเรียบร้อย: คาบ ${data.sessions} · การเช็คชื่อ ${data.attendance} รายการ · ลงทะเบียน ${data.enrollments} คน` +
+      (data.students_removed ? ` · นักศึกษาในระบบที่ไม่ได้ใช้แล้ว ${data.students_removed} คน` : '') +
+      (data.course_deleted ? ' · ลบรายวิชาแล้ว' : '') })
+    load()
+  }
 
   async function onFile(e) {
     const file = e.target.files?.[0]
@@ -60,11 +87,15 @@ export default function CourseManager() {
       <h2>จัดการวิชา</h2>
       <div>
         {sections.map(s => (
-          <p key={s.id} className="secrow">
-            <b>{s.courses.code}</b> {s.courses.name ?? ''} · ภาค {s.term} · กลุ่ม {s.group_no}
-            <span className="muted"> · {s.enrollments?.[0]?.count ?? 0} คน · ผู้สอน: {
-              s.section_teachers.map(t => t.profiles?.full_name).filter(Boolean).join(', ') || 'ยังไม่มี'}</span>
-          </p>
+          <div key={s.id} className="secrow">
+            <div>
+              <b>{s.courses.code}</b> {s.courses.name ?? ''} · ภาค {s.term} · กลุ่ม {s.group_no}
+              <span className="muted"> · {s.enrollments?.[0]?.count ?? 0} คน · ผู้สอน: {
+                s.section_teachers.map(t => t.profiles?.full_name).filter(Boolean).join(', ') || 'ยังไม่มี'}</span>
+            </div>
+            <button className="link" disabled={working === s.id} onClick={() => backup(s)}>📥 Excel</button>
+            <button className="link danger-link" disabled={working === s.id} onClick={() => removeSection(s)}>🗑 ลบวิชา</button>
+          </div>
         ))}
       </div>
       <button className="secondary" onClick={() => setOpen(!open)}>{open ? 'ปิดฟอร์ม' : '＋ เพิ่มวิชา / กลุ่มเรียนใหม่'}</button>
