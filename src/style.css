@@ -1,0 +1,31 @@
+:root { --bg:#f3f4f6; --fg:#111827; --card:#fff; --pri:#1e40af; --mut:#6b7280; --ok:#15803d; --warn:#b45309; --bad:#b91c1c; }
+@media (prefers-color-scheme: dark) { :root { --bg:#0f172a; --fg:#e5e7eb; --card:#1e293b; --mut:#94a3b8; --pri:#3b82f6; } }
+* { box-sizing: border-box; }
+body { margin:0; font-family: system-ui, "Noto Sans Thai", sans-serif; background:var(--bg); color:var(--fg); }
+header { display:flex; gap:12px; align-items:center; padding:12px 16px; background:var(--pri); color:#fff; padding-top:max(12px, env(safe-area-inset-top)); }
+header span { flex:1; text-align:right; font-size:.9rem; opacity:.9; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+header .link { color:#fff; }
+main { max-width:640px; margin:0 auto; padding:12px 16px 40px; }
+.card { background:var(--card); border-radius:12px; padding:16px; margin:12px 0; box-shadow:0 1px 3px #0002; }
+.login { max-width:380px; margin:10vh auto; }
+.center { text-align:center; }
+label { display:block; margin:12px 0; font-size:.9rem; }
+input, select { width:100%; padding:12px; margin-top:4px; font-size:1rem; border:1px solid #9ca3af; border-radius:8px; background:var(--card); color:var(--fg); }
+button { width:100%; padding:14px; margin-top:8px; font-size:1rem; border:0; border-radius:10px; background:var(--pri); color:#fff; cursor:pointer; }
+button:disabled { opacity:.5; }
+button.secondary { background:#6b7280; }
+button.danger { background:var(--bad); }
+button.link { background:none; color:var(--pri); width:auto; padding:6px; text-decoration:underline; }
+.err { color:var(--bad); } .muted { color:var(--mut); }
+.result.ok h2 { color:var(--ok); } .result.warn h2 { color:var(--warn); }
+.qr { width:100%; max-width:420px; image-rendering:pixelated; background:#fff; padding:8px; border-radius:8px; }
+#reader { width:100%; }
+.roster { list-style:none; padding:0; margin:0; }
+.roster li { padding:8px 0; border-bottom:1px solid #8884; }
+.roster .row { display:flex; justify-content:space-between; gap:8px; }
+.roster .row button { margin-top:4px; padding:8px; }
+.roster li.present .row span:last-child { color:var(--ok); }
+.roster li.pending .row span:last-child, .roster li.late .row span:last-child { color:var(--warn); }
+.roster li.absent .row span:last-child { color:var(--bad); }
+.roster .edit { display:grid; gap:6px; }
+details summary { cursor:pointer; padding:6px 0; }
