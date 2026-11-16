@@ -65,13 +65,12 @@ export function parseRows(text) {
     const i = f.findIndex(x => /^\d{10}$/.test(x))
     if (i < 0) continue
     let name = f[i + 1] ?? ''
-    let program = f[i + 2] ?? ''
     // ถ้าไม่มีตัวคั่นเลย (ชื่อ-นามสกุลถูกแยกด้วยช่องว่าง) ให้รวมคำที่เหลือเป็นชื่อ
-    if (line.indexOf('\t') < 0 && !/[,;]/.test(line)) { name = f.slice(i + 1).join(' '); program = '' }
+    if (line.indexOf('\t') < 0 && !/[,;]/.test(line)) { name = f.slice(i + 1).join(' ') }
     if (!name || /^\d+$/.test(name)) { skipped++; continue }
     if (seen.has(f[i])) { skipped++; continue }
     seen.add(f[i])
-    rows.push({ code: f[i], name, program })
+    rows.push({ code: f[i], name })   // เอาเฉพาะรหัสนักศึกษากับชื่อ-สกุล (คอลัมน์อื่นในไฟล์ทะเบียนไม่ใช้)
   }
   return { rows, skipped }
 }

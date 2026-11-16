@@ -62,7 +62,10 @@ export default function CourseManager({ isAdmin }) {
     if (!file) return
     setMsg(null); setFileName(file.name)
     try {
-      setText(await fileToText(file))
+      const raw = await fileToText(file)
+      // แสดงเฉพาะรหัสนักศึกษากับชื่อ-สกุล (ตัดคอลัมน์อื่นจากไฟล์ทะเบียนออก) ถ้าอ่านไม่ได้เลยให้แสดงต้นฉบับเพื่อตรวจ
+      const clean = parseRows(raw).rows.map(r => `${r.code}\t${r.name}`).join('\n')
+      setText(clean || raw)
       const g = parseFileName(file.name)           // เช่น 10901106_1_Year_2_2569.doc
       if (g) setF(p => ({ ...p, code: p.code || g.course, group: g.group, term: p.term || g.term }))
     } catch (err) { setMsg({ text: err.message }) }
@@ -111,8 +114,8 @@ export default function CourseManager({ isAdmin }) {
           <label>ไฟล์รายชื่อจากทะเบียน (.doc / .csv / .txt)
             <input type="file" accept=".doc,.rtf,.csv,.txt,.tsv" onChange={onFile} />
           </label>
-          <label>หรือวางรายชื่อ (รหัสนักศึกษา, ชื่อ, หลักสูตร ทีละบรรทัด)
-            <textarea rows={4} value={text} onChange={e => setText(e.target.value)} placeholder="6910101001,นายสมชาย ใจดี,วท.บ." />
+          <label>หรือวางรายชื่อ (รหัสนักศึกษา, ชื่อ-สกุล ทีละบรรทัด)
+            <textarea rows={4} value={text} onChange={e => setText(e.target.value)} placeholder="6910101001,นายสมชาย ใจดี" />
           </label>
           {text && (
             <p className={rows.length ? 'ok' : 'err'}>
