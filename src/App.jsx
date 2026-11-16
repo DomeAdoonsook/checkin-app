@@ -33,19 +33,24 @@ function navFor(role, pending) {
     ]
   }
   if (role === 'admin') {
-    // แอดมิน: งานสอนอยู่บนสุด (หน้าแรก) ตามด้วยกลุ่มผู้ดูแลระบบ
+    // แอดมิน: งานสอน (รวมเพิ่ม/จัดการวิชา) อยู่บนสุด ตามด้วยกลุ่มผู้ดูแลระบบ
     return [
-      { title: 'การสอน', items: [{ id: 'courses', icon: 'book', label: 'วิชาที่ฉันสอน', short: 'วิชา' }] },
+      { title: 'การสอน', items: [
+        { id: 'courses', icon: 'book', label: 'วิชาที่ฉันสอน', short: 'วิชา' },
+        { id: 'manage', icon: 'plus', label: 'จัดการวิชา', short: 'จัดการ' },
+      ] },
       { title: 'ผู้ดูแลระบบ', items: [
         { id: 'overview', icon: 'home', label: 'ภาพรวม', short: 'ภาพรวม' },
         { id: 'applicants', icon: 'file', label: 'ใบสมัครอาจารย์', short: 'ใบสมัคร', badge: pending },
-        { id: 'manage', icon: 'folder', label: 'จัดการวิชา', short: 'จัดการ' },
       ] },
       { title: 'บัญชี', items: [ACCOUNT] },
     ]
   }
   return [
-    { title: 'การสอน', items: [{ id: 'courses', icon: 'book', label: 'วิชาของฉัน', short: 'วิชา' }] },
+    { title: 'การสอน', items: [
+      { id: 'courses', icon: 'book', label: 'วิชาของฉัน', short: 'วิชา' },
+      { id: 'manage', icon: 'plus', label: 'เพิ่มรายวิชา', short: 'เพิ่มวิชา' },
+    ] },
     { title: 'บัญชี', items: [ACCOUNT] },
   ]
 }
@@ -117,7 +122,7 @@ export default function App() {
   else if (isStudent) view = <Student profile={profile} view={current} scan={scan} onScanDone={() => setConsumed(hash)} />
   else if (current === 'overview') view = <AdminHome onGo={go} />
   else if (current === 'applicants') view = <Admin onChanged={refreshPending} />
-  else if (current === 'manage') view = <CourseManager />
+  else if (current === 'manage') view = <CourseManager isAdmin={profile.role === 'admin'} />
   else view = <Teacher profile={profile} />
 
   return (

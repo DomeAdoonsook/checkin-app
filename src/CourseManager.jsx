@@ -4,8 +4,9 @@ import { fileToText, parseRows, parseFileName } from './parseRoster.js'
 import { exportAttendance } from './exportAttendance.js'
 import Icon from './Icon.jsx'
 
-// หน้าแอดมิน: สร้างวิชา/กลุ่มเรียน + นำเข้ารายชื่อ + มอบหมายอาจารย์
-export default function CourseManager() {
+// เพิ่มรายวิชา/กลุ่มเรียน + นำเข้ารายชื่อ
+// อาจารย์ทั่วไป: เห็นและสร้างได้เฉพาะวิชาของตัวเอง | แอดมิน: ทุกวิชา เลือกผู้สอน และลบวิชาได้
+export default function CourseManager({ isAdmin }) {
   const [open, setOpen] = useState(false)
   const [teachers, setTeachers] = useState([])
   const [sections, setSections] = useState([])
@@ -20,7 +21,9 @@ export default function CourseManager() {
 
   async function load() {
     const [t, s] = await Promise.all([
-      supabase.from('profiles').select('id, full_name, email, role').in('role', ['teacher', 'admin']).eq('status', 'active'),
+      isAdmin
+        ? supabase.from('profiles').select('id, full_name, email, role').in('role', ['teacher', 'admin']).eq('status', 'active')
+        : Promise.resolve({ data: [] }),
       supabase.from('sections')
         .select('id, term, group_no, courses(code, name), enrollments(count), section_teachers(profiles(full_name))')
         .order('term', { ascending: false }),
@@ -71,21 +74,23 @@ export default function CourseManager() {
     if (rows.length === 0) return setMsg({ text: 'ยังไม่พบรายชื่อนักศึกษา (ต้องมีรหัสนักศึกษา 10 หลัก)' })
     if (!confirm(`สร้างวิชา ${f.code} ภาค ${f.term} กลุ่ม ${f.group}\nนำเข้านักศึกษา ${rows.length} คน?`)) return
     setBusy(true)
-    const { data, error } = await supabase.rpc('admin_create_course', {
+    const { data, error } = await supabase.rpc('create_course', {
       p_code: f.code.trim(), p_name: f.name.trim(), p_term: f.term.trim(), p_group: +f.group || 1,
       p_students: rows, p_teacher: f.teacher || null,
     })
     setBusy(false)
     if (error) return setMsg({ text: errMsg(error) })
     setMsg({ ok: true, text: `สร้างเรียบร้อย: ลงทะเบียน ${data.enrolled} คน (นักศึกษาใหม่ในระบบ ${data.new_students} คน) ` +
-      (f.teacher ? 'และมอบหมายอาจารย์แล้ว' : '— ยังไม่ได้เลือกอาจารย์ผู้สอน') })
+      (!isAdmin ? '— คุณเป็นผู้สอนหลักของกลุ่มนี้แล้ว ไปที่ "วิชาที่ฉันสอน" เพื่อเปิดคาบหรือออกรหัสเปิดใช้งาน'
+        : f.teacher ? 'และมอบหมายอาจารย์แล้ว' : '— ยังไม่ได้เลือกอาจารย์ผู้สอน') })
     setText(''); setFileName(''); setF({ code: '', name: '', term: '', group: '1', teacher: '' })
     load()
   }
 
   return (
     <section className="card">
-      <h2>จัดการวิชา</h2>
+      <h2>{isAdmin ? 'จัดการวิชา' : 'เพิ่มรายวิชา'}</h2>
+      {!isAdmin && <p className="muted">รายวิชาและกลุ่มเรียนของคุณ เพิ่มใหม่ได้จากไฟล์รายชื่อของทะเบียน</p>}
       <div>
         {sections.map(s => (
           <div key={s.id} className="secrow">
@@ -95,7 +100,7 @@ export default function CourseManager() {
                 s.section_teachers.map(t => t.profiles?.full_name).filter(Boolean).join(', ') || 'ยังไม่มี'}</span>
             </div>
             <button className="link" disabled={working === s.id} onClick={() => backup(s)}><Icon name="download" size={16} /> Excel</button>
-            <button className="link danger-link" disabled={working === s.id} onClick={() => removeSection(s)}><Icon name="trash" size={16} /> ลบวิชา</button>
+            {isAdmin && <button className="link danger-link" disabled={working === s.id} onClick={() => removeSection(s)}><Icon name="trash" size={16} /> ลบวิชา</button>}
           </div>
         ))}
       </div>
@@ -119,12 +124,14 @@ export default function CourseManager() {
           <label>ชื่อวิชา <input value={f.name} onChange={e => setF({ ...f, name: e.target.value })} /></label>
           <label>ภาคเรียน (เช่น 2/2569) <input value={f.term} onChange={e => setF({ ...f, term: e.target.value })} /></label>
           <label>กลุ่มเรียน <input type="number" min="1" value={f.group} onChange={e => setF({ ...f, group: e.target.value })} /></label>
-          <label>อาจารย์ผู้สอนหลัก
-            <select value={f.teacher} onChange={e => setF({ ...f, teacher: e.target.value })}>
-              <option value="">— ยังไม่เลือก —</option>
-              {teachers.map(t => <option key={t.id} value={t.id}>{t.full_name} ({t.email ?? 'ไม่มีอีเมล'})</option>)}
-            </select>
-          </label>
+          {isAdmin ? (
+            <label>อาจารย์ผู้สอนหลัก
+              <select value={f.teacher} onChange={e => setF({ ...f, teacher: e.target.value })}>
+                <option value="">— ยังไม่เลือก —</option>
+                {teachers.map(t => <option key={t.id} value={t.id}>{t.full_name} ({t.email ?? 'ไม่มีอีเมล'})</option>)}
+              </select>
+            </label>
+          ) : <p className="muted">คุณจะเป็นผู้สอนหลักของกลุ่มเรียนนี้โดยอัตโนมัติ</p>}
           <button onClick={create} disabled={busy || rows.length === 0}>{busy ? 'กำลังสร้าง…' : 'สร้างวิชาและนำเข้ารายชื่อ'}</button>
         </div>
       )}

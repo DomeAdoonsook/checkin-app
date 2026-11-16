@@ -27,6 +27,7 @@ export function errMsg(e) {
   if (m.includes('SESSION_CLOSED')) return 'คาบนี้ปิดแล้ว'
   if (m.includes('NOT_ENROLLED')) return 'คุณไม่ได้ลงทะเบียนวิชานี้'
   if (m.includes('LOCATION_REQUIRED')) return 'ต้องอนุญาตการเข้าถึงตำแหน่งเพื่อเช็คชื่อ'
+  if (m.includes('SECTION_EXISTS')) return 'กลุ่มเรียนนี้ (รหัสวิชา ภาคเรียน และกลุ่ม) มีอยู่แล้วและเป็นของอาจารย์ท่านอื่น กรุณาเปลี่ยนกลุ่มหรือติดต่อแอดมิน'
   if (m.includes('FORBIDDEN')) return 'ไม่มีสิทธิ์ดำเนินการ'
   if (m.includes('REASON_REQUIRED')) return 'กรุณากรอกเหตุผล'
   return m
