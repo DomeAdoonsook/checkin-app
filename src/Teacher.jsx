@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import QRCode from 'qrcode'
 import { supabase, statusLabel, errMsg } from './supabase.js'
+import Codes from './Codes.jsx'
 
 function QrBox({ sessionId }) {
   const [img, setImg] = useState('')
@@ -111,6 +112,7 @@ export default function Teacher() {
   const [sections, setSections] = useState([])
   const [sessions, setSessions] = useState([])
   const [active, setActive] = useState(null)
+  const [codesFor, setCodesFor] = useState(null)   // section id ที่เปิดแผงออกรหัส
   const [geo, setGeo] = useState({ lat: '', lng: '', radius: 100 })
   const [msg, setMsg] = useState('')
 
@@ -174,6 +176,10 @@ export default function Teacher() {
           <section className="card" key={sec.id}>
             <h2>{sec.courses.code} {sec.courses.name ?? ''}</h2>
             <p className="muted">ภาค {sec.term} · กลุ่ม {sec.group_no}</p>
+            <button className="secondary" onClick={() => setCodesFor(codesFor === sec.id ? null : sec.id)}>
+              🔑 รหัสเปิดใช้งานนักศึกษา
+            </button>
+            {codesFor === sec.id && <Codes section={sec} />}
             {open
               ? <button onClick={() => setActive(open)}>เปิดหน้าคาบที่กำลังเช็ค</button>
               : <>

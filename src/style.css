@@ -39,3 +39,15 @@ details summary { cursor:pointer; padding:6px 0; }
 .check { display:flex; gap:8px; align-items:center; margin:6px 0; font-size:.9rem; }
 .check input { width:auto; margin:0; }
 header button.logout { width:auto; margin:0; padding:6px 12px; font-size:.85rem; background:transparent; color:#fff; border:1px solid #fff; border-radius:8px; white-space:nowrap; }
+.codes { margin:8px 0; }
+.codetable { width:100%; border-collapse:collapse; margin-top:10px; font-size:.9rem; }
+.codetable th, .codetable td { text-align:left; padding:6px 4px; border-bottom:1px solid #8884; }
+.print-area { display:none; }
+.slip { border:1px dashed #666; padding:10px; break-inside:avoid; font-size:12px; }
+.slipcode { font:700 22px monospace; letter-spacing:.12em; margin:6px 0; }
+.slipnote { font-size:10px; color:#444; }
+@media print {
+  body * { visibility:hidden; }
+  .print-area, .print-area * { visibility:visible; }
+  .print-area { display:grid; grid-template-columns:1fr 1fr; gap:8px; position:absolute; left:0; top:0; width:100%; color:#000; background:#fff; }
+}
