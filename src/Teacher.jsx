@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import QRCode from 'qrcode'
 import { supabase, statusLabel, errMsg } from './supabase.js'
 import Codes from './Codes.jsx'
-import { exportAttendance } from './exportAttendance.js'
 import Icon from './Icon.jsx'
 
 function QrBox({ sessionId }) {
@@ -24,7 +23,7 @@ function QrBox({ sessionId }) {
   return err ? <p className="err">{err}</p> : img ? <img className="qr" src={img} alt="QR เช็คชื่อ" /> : <p>กำลังสร้าง QR…</p>
 }
 
-function Roster({ session }) {
+export function Roster({ session }) {
   const [rows, setRows] = useState([])
   const [edit, setEdit] = useState(null)   // student_code ที่กำลังเช็คแทน
   const [status, setStatus] = useState('present')
@@ -113,12 +112,11 @@ function Roster({ session }) {
 // ตำแหน่งเริ่มต้นของระบบ (ใช้เมื่อวิชายังไม่ได้บันทึกตำแหน่งประจำวิชา) รัศมีเริ่มต้น 25 เมตร
 const DEFAULT_GEO = { lat: '18.897152', lng: '99.017858', radius: 25 }
 
-export default function Teacher() {
+export default function Teacher({ onGo }) {
   const [sections, setSections] = useState([])
   const [sessions, setSessions] = useState([])
   const [active, setActive] = useState(null)
   const [codesFor, setCodesFor] = useState(null)   // section id ที่เปิดแผงออกรหัส
-  const [exporting, setExporting] = useState(null) // section id ที่กำลังส่งออก Excel
   const [geos, setGeos] = useState({})            // ค่าที่กำลังแก้ต่อกลุ่มเรียน (ยังไม่บันทึก)
   const [msg, setMsg] = useState('')
   const [note, setNote] = useState('')
@@ -143,11 +141,6 @@ export default function Teacher() {
   }
   useEffect(() => { load() }, [])
 
-  async function doExport(sec) {
-    setMsg(''); setExporting(sec.id)
-    try { await exportAttendance(sec) } catch (e) { setMsg('ส่งออกไม่สำเร็จ: ' + errMsg(e)) }
-    setExporting(null)
-  }
 
   function useHere(sec) {
     setMsg(''); setNote('')
@@ -224,8 +217,8 @@ export default function Teacher() {
               <Icon name="key" size={18} /> รหัสเปิดใช้งานนักศึกษา
             </button>
             {codesFor === sec.id && <Codes section={sec} />}
-            <button className="secondary" disabled={exporting === sec.id} onClick={() => doExport(sec)}>
-              {exporting === sec.id ? 'กำลังสร้างไฟล์…' : <><Icon name="download" size={18} /> ส่งออกการเข้าเรียน (Excel)</>}
+            <button className="secondary" onClick={() => { try { sessionStorage.setItem('resultsSection', sec.id) } catch { /* ignore */ } onGo?.('results') }}>
+              <Icon name="chart" size={18} /> ดูผลการเช็คชื่อ
             </button>
             {open
               ? <button onClick={() => setActive(open)}>เปิดหน้าคาบที่กำลังเช็ค</button>

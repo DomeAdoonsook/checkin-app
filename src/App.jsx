@@ -7,6 +7,7 @@ import Account from './Account.jsx'
 import Admin from './Admin.jsx'
 import CourseManager from './CourseManager.jsx'
 import AdminHome from './AdminHome.jsx'
+import Results from './Results.jsx'
 import Icon from './Icon.jsx'
 import Logo from './Logo.jsx'
 
@@ -38,6 +39,7 @@ function navFor(role, pending) {
     return [
       { title: 'การสอน', items: [
         { id: 'courses', icon: 'book', label: 'วิชาที่ฉันสอน', short: 'วิชา' },
+        { id: 'results', icon: 'chart', label: 'ผลการเช็คชื่อ', short: 'ผลเช็ค' },
         { id: 'manage', icon: 'plus', label: 'จัดการวิชา', short: 'จัดการ' },
       ] },
       { title: 'ผู้ดูแลระบบ', items: [
@@ -50,6 +52,7 @@ function navFor(role, pending) {
   return [
     { title: 'การสอน', items: [
       { id: 'courses', icon: 'book', label: 'วิชาของฉัน', short: 'วิชา' },
+      { id: 'results', icon: 'chart', label: 'ผลการเช็คชื่อ', short: 'ผลเช็ค' },
       { id: 'manage', icon: 'plus', label: 'เพิ่มรายวิชา', short: 'เพิ่มวิชา' },
     ] },
     { title: 'บัญชี', items: [ACCOUNT] },
@@ -123,8 +126,9 @@ export default function App() {
   else if (isStudent) view = <Student profile={profile} view={current} scan={scan} onScanDone={() => setConsumed(hash)} />
   else if (current === 'overview') view = <AdminHome onGo={go} />
   else if (current === 'applicants') view = <Admin onChanged={refreshPending} />
+  else if (current === 'results') view = <Results isAdmin={profile.role === 'admin'} />
   else if (current === 'manage') view = <CourseManager isAdmin={profile.role === 'admin'} />
-  else view = <Teacher profile={profile} />
+  else view = <Teacher profile={profile} onGo={go} />
 
   return (
     <div className="shell">

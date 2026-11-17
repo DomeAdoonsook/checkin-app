@@ -174,3 +174,31 @@ button.only-mobile { display:none; }
 button.textlink { width:auto; margin:0; padding:4px 2px; background:none; color:var(--mut); font-size:.85rem; text-decoration:underline; }
 button.textlink:hover { color:var(--pri); }
 .switch-hint { margin:16px 0 2px; }
+
+/* หน้าผลการเช็คชื่อ */
+.stat.plain { display:flex; flex-direction:column; gap:4px; padding:14px; background:var(--bg); border:1px solid #8884; border-radius:10px; }
+.stat.plain .n { font-size:1.7rem; font-weight:700; color:var(--pri); }
+.stat.plain .l { font-size:.82rem; color:var(--mut); }
+.stat.plain.hot { border-color:var(--warn); } .stat.plain.hot .n { color:var(--warn); }
+.res-tools { display:flex; flex-wrap:wrap; gap:8px 12px; align-items:center; justify-content:space-between; margin-top:12px; }
+.res-tools .tabs { margin:0; } .res-tools .tab { flex:none; padding:8px 16px; }
+.res-tools > button { width:auto; margin:0; padding:10px 14px; font-size:.9rem; }
+.tab.on { background:var(--pri); color:#fff; }
+.res-opts { display:flex; flex-wrap:wrap; gap:6px 18px; align-items:center; margin-bottom:6px; }
+.res-opts label { margin:0; } .res-opts label.inline { display:flex; align-items:center; gap:8px; }
+.res-opts input[type=number] { width:80px; margin:0; padding:8px; }
+.tablewrap { overflow:auto; max-height:70vh; border:1px solid #8884; border-radius:8px; }
+.restable { border-collapse:separate; border-spacing:0; font-size:.85rem; white-space:nowrap; min-width:100%; }
+.restable th, .restable td { padding:6px 8px; border-bottom:1px solid #8883; text-align:center; background:var(--card); }
+.restable thead th { position:sticky; top:0; z-index:3; background:#dbeafe; color:#111; font-weight:600; }
+.restable .sticky { position:sticky; z-index:2; text-align:left; }
+.restable .c1 { left:0; min-width:96px; } .restable .c2 { left:96px; min-width:190px; border-right:1px solid #8884; }
+.restable thead .sticky { z-index:4; }
+.restable td.cell { color:#111; }
+.cell.present { background:#dcfce7 !important; } .cell.late { background:#fef3c7 !important; }
+.cell.leave { background:#e0e7ff !important; } .cell.absent { background:#fee2e2 !important; }
+.cell.pending { background:#fde68a !important; }
+.restable tr.warnrow .sticky { box-shadow:inset 3px 0 0 var(--bad); }
+.restable td.pct { font-weight:700; } .restable td.pct.low { color:var(--bad); }
+.sessrow { border-bottom:1px solid #8884; padding:6px 0; }
+button.sesshead { width:100%; display:flex; flex-wrap:wrap; gap:4px 14px; justify-content:flex-start; text-decoration:none; color:var(--fg); text-align:left; padding:8px 0; }
