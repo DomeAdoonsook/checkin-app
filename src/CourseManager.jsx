@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase, errMsg } from './supabase.js'
-import { fileToText, parseRows, parseFileName } from './parseRoster.js'
+import { fileToText, parseRows, parseMeta, parseFileName } from './parseRoster.js'
 import { exportAttendance } from './exportAttendance.js'
 import Icon from './Icon.jsx'
 
@@ -18,7 +18,11 @@ export default function CourseManager({ isAdmin }) {
   const [busy, setBusy] = useState(false)
   const [working, setWorking] = useState(null)   // section id ที่กำลังส่งออก/ลบ
 
-  const { rows, skipped } = parseRows(text)
+  const { rows, skipped, withdrawn } = parseRows(text)
+  // กลุ่มเรียน (หมู่): อ่านจากคอลัมน์ "กลุ่ม" ในไฟล์ทะเบียน ถ้าไม่ระบุใช้ช่อง "กลุ่มเรียน" ในฟอร์ม
+  const groupOf = r => r.group ?? (+f.group || 1)
+  const fileHasGroups = rows.some(r => r.group != null)
+  const groups = [...new Set(rows.map(groupOf))].sort((a, b) => a - b)
 
   async function load() {
     const [t, s] = await Promise.all([
@@ -64,11 +68,19 @@ export default function CourseManager({ isAdmin }) {
     setMsg(null); setFileName(file.name)
     try {
       const raw = await fileToText(file)
-      // แสดงเฉพาะรหัสนักศึกษากับชื่อ-สกุล (ตัดคอลัมน์อื่นจากไฟล์ทะเบียนออก) ถ้าอ่านไม่ได้เลยให้แสดงต้นฉบับเพื่อตรวจ
-      const clean = parseRows(raw).rows.map(r => `${r.code}\t${r.name}`).join('\n')
+      const meta = parseMeta(raw)                  // รหัสวิชา ชื่อวิชา ภาคเรียน จากส่วนหัวของไฟล์ทะเบียน
+      const parsed = parseRows(raw)
+      // แสดงรหัสนักศึกษา ชื่อ-สกุล และกลุ่ม (ตัดคอลัมน์อื่นออก) ถ้าอ่านไม่ได้เลยให้แสดงต้นฉบับเพื่อตรวจ
+      const clean = parsed.rows.map(r => `${r.code}\t${r.name}${r.group != null ? '\t' + r.group : ''}`).join('\n')
       setText(clean || raw)
-      const g = parseFileName(file.name)           // เช่น 10901106_1_Year_2_2569.doc
-      if (g) setF(p => ({ ...p, code: p.code || g.course, group: g.group, term: p.term || g.term }))
+      const g = parseFileName(file.name)           // เช่น 10901106_1_Year_2_2569.doc (ใช้เมื่อในไฟล์ไม่มีข้อมูล)
+      setF(p => ({
+        ...p,
+        code: p.code || meta.code || g?.course || '',
+        name: p.name || meta.name || '',
+        term: p.term || meta.term || g?.term || '',
+        group: parsed.rows.some(r => r.group != null) ? p.group : (g?.group ?? p.group),
+      }))
     } catch (err) { setMsg({ text: err.message }) }
   }
 
@@ -76,16 +88,26 @@ export default function CourseManager({ isAdmin }) {
     setMsg(null)
     if (!f.code.trim() || !f.term.trim()) return setMsg({ text: 'กรุณากรอกรหัสวิชาและภาคเรียน' })
     if (rows.length === 0) return setMsg({ text: 'ยังไม่พบรายชื่อนักศึกษา (ต้องมีรหัสนักศึกษา 10 หลัก)' })
-    if (!confirm(`สร้างวิชา ${f.code} ภาค ${f.term} กลุ่ม ${f.group}\nนำเข้านักศึกษา ${rows.length} คน?`)) return
+    const summary = groups.map(g => `กลุ่ม ${g}: ${rows.filter(r => groupOf(r) === g).length} คน`).join('\n')
+    if (!confirm(`สร้างวิชา ${f.code} ภาค ${f.term}\n${summary}\n\nนำเข้าตามนี้?`)) return
     setBusy(true)
-    const { data, error } = await supabase.rpc('create_course', {
-      p_code: f.code.trim(), p_name: f.name.trim(), p_term: f.term.trim(), p_group: +f.group || 1,
-      p_students: rows, p_teacher: f.teacher || null,
-      ...(f.hasLab ? { p_lab: Math.max(1, +f.labN || 1) } : {}),   // ส่งเมื่อติ๊กว่ามีแล็บเท่านั้น (ไม่ทับค่าเดิมของกลุ่มที่นำเข้าซ้ำ)
-    })
+    const results = []
+    for (const g of groups) {          // สร้างทีละกลุ่มเรียน (หมู่) ตามที่ไฟล์ระบุ
+      const part = rows.filter(r => groupOf(r) === g).map(({ code, name }) => ({ code, name }))
+      const { data, error } = await supabase.rpc('create_course', {
+        p_code: f.code.trim(), p_name: f.name.trim(), p_term: f.term.trim(), p_group: g,
+        p_students: part, p_teacher: f.teacher || null,
+        ...(f.hasLab ? { p_lab: Math.max(1, +f.labN || 1) } : {}),   // ส่งเมื่อติ๊กว่ามีแล็บเท่านั้น (ไม่ทับค่าเดิมของกลุ่มที่นำเข้าซ้ำ)
+      })
+      if (error) {
+        setBusy(false); load()
+        return setMsg({ text: `กลุ่ม ${g}: ${errMsg(error)}` + (results.length ? ` (กลุ่ม ${results.map(r => r.g).join(', ')} สร้างสำเร็จไปแล้ว)` : '') })
+      }
+      results.push({ g, ...data })
+    }
     setBusy(false)
-    if (error) return setMsg({ text: errMsg(error) })
-    setMsg({ ok: true, text: `สร้างเรียบร้อย: ลงทะเบียน ${data.enrolled} คน (นักศึกษาใหม่ในระบบ ${data.new_students} คน) ` +
+    const newStudents = results.reduce((s, r) => s + r.new_students, 0)
+    setMsg({ ok: true, text: `สร้างเรียบร้อย: ${results.map(r => `กลุ่ม ${r.g} ลงทะเบียน ${r.enrolled} คน`).join(' · ')} (นักศึกษาใหม่ในระบบ ${newStudents} คน) ` +
       (!isAdmin ? '— คุณเป็นผู้สอนหลักของกลุ่มนี้แล้ว ไปที่ "วิชาที่ฉันสอน" เพื่อเปิดคาบหรือออกรหัสเปิดใช้งาน'
         : f.teacher ? 'และมอบหมายอาจารย์แล้ว' : '— ยังไม่ได้เลือกอาจารย์ผู้สอน') })
     setText(''); setFileName(''); setF(BLANK)
@@ -121,17 +143,20 @@ export default function CourseManager({ isAdmin }) {
           </label>
           {text && (
             <p className={rows.length ? 'ok' : 'err'}>
-              พบนักศึกษา {rows.length} คน{skipped ? ` (ข้าม ${skipped} บรรทัดที่ซ้ำ/ไม่สมบูรณ์)` : ''}{fileName ? ` จาก ${fileName}` : ''}
+              พบนักศึกษา {rows.length} คน{fileName ? ` จาก ${fileName}` : ''}
+              {groups.length > 0 && <> · {groups.map(g => `กลุ่ม ${g}: ${rows.filter(r => groupOf(r) === g).length} คน`).join(' · ')}</>}
+              {withdrawn ? ` · ข้ามคนที่ถอน/โอนย้ายออก ${withdrawn} คน` : ''}{skipped ? ` · ข้าม ${skipped} บรรทัดที่ซ้ำ/ไม่สมบูรณ์` : ''}
               {rows.length > 0 && <span className="muted"> — เช่น {rows[0].code} {rows[0].name}{rows.length > 1 ? ` … ${rows[rows.length - 1].code} ${rows[rows.length - 1].name}` : ''}</span>}
             </p>
           )}
           <label>รหัสวิชา <input value={f.code} onChange={e => setF({ ...f, code: e.target.value })} /></label>
           <label>ชื่อวิชา <input value={f.name} onChange={e => setF({ ...f, name: e.target.value })} /></label>
           <label>ภาคเรียน (เช่น 2/2569) <input value={f.term} onChange={e => setF({ ...f, term: e.target.value })} /></label>
-          <label>กลุ่มเรียน (หมู่) <input type="number" min="1" value={f.group} onChange={e => setF({ ...f, group: e.target.value })} /></label>
+          {fileHasGroups
+            ? <p className="muted">กลุ่มเรียน (หมู่) อ่านจากคอลัมน์ "กลุ่ม" ในไฟล์ แยกเป็นกลุ่มให้อัตโนมัติ</p>
+            : <label>กลุ่มเรียน (หมู่) <input type="number" min="1" value={f.group} onChange={e => setF({ ...f, group: e.target.value })} /></label>}
           <p className="muted">
-            วิชาที่มีหลายหมู่เรียน: กรอกรหัสวิชาและภาคเรียนเดิม เปลี่ยนเลขกลุ่ม แล้วนำเข้ารายชื่อของหมู่นั้น
-            (คาบบรรยายเปิดรวมทุกหมู่ได้ ส่วนคาบแล็บเปิดแยกทีละหมู่)
+            ไฟล์ทะเบียนที่มีหลายกลุ่ม (หมู่) จะถูกแยกให้เองในครั้งเดียว (คาบบรรยายเปิดรวมทุกหมู่ได้ ส่วนคาบแล็บเปิดแยกทีละหมู่)
           </p>
           <label className="check">
             <input type="checkbox" checked={f.hasLab} onChange={e => setF({ ...f, hasLab: e.target.checked })} />

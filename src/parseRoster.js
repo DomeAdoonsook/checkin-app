@@ -1,7 +1,8 @@
 // อ่านไฟล์รายชื่อนักศึกษา: ไฟล์ .doc จากทะเบียน (จริงๆ เป็น RTF รหัสภาษาไทย cp874), CSV/TSV, หรือข้อความที่วาง
+//   ไฟล์ทะเบียน: เลขที่ | รหัสประจำตัว | ชื่อ | เอก | กลุ่ม | สถานภาพ | จาก (0 ลงทะเบียน, 1 เพิ่ม, 2 ถอน, 3 เปลี่ยนกลุ่ม, 4 โอนย้ายออก)
 
 const BS = String.fromCharCode(92)
-const SKIP = /^(fonttbl|colortbl|stylesheet|info|listtable|listoverridetable|pict|header|footer)/
+const SKIP = /^(fonttbl|colortbl|stylesheet|info|listtable|listoverridetable|pict)/   // ไม่ข้าม header: ชื่อวิชา/ภาคเรียนอยู่ในส่วนหัวกระดาษ
 
 function decode(label, bytes) {
   try { return new TextDecoder(label).decode(bytes) } catch { return new TextDecoder('utf-8').decode(bytes) }
@@ -54,25 +55,65 @@ export async function fileToText(file) {
   try { return new TextDecoder('utf-8', { fatal: true }).decode(buf) } catch { return decode('windows-874', buf) }
 }
 
-// แยกแถวรายชื่อ: หาช่อง 10 หลัก (รหัสนักศึกษา) แล้วถัดไปคือชื่อ และสาขา/หลักสูตร
+// ข้อมูลวิชาจากส่วนหัวของไฟล์ทะเบียน: "รายวิชา 10901106 วิศวกรรมการประมง ... หน่วยกิต" และ "ปีการศึกษา 2/2569"
+export function parseMeta(text) {
+  const flat = text.replace(/\s+/g, ' ')
+  const c = /รายวิชา\s*(\d{6,10})\s+(.+?)\s*(?:หน่วยกิต|$)/.exec(flat)
+  const t = /ปีการศึกษา\s*(\d)\s*\/\s*(\d{4})/.exec(flat)
+  return {
+    code: c ? c[1] : '',
+    name: c ? c[2].trim() : '',
+    term: t ? `${t[1]}/${t[2]}` : '',
+  }
+}
+
+// แยกแถวรายชื่อ: หาช่อง 10 หลัก (รหัสนักศึกษา) แล้วถัดไปคือชื่อ
+//  - แถวจากไฟล์ทะเบียน (คั่นด้วยแท็บ): อ่านกลุ่มจากคอลัมน์ "กลุ่ม" และข้ามคนที่ "ถอน"/"โอนย้ายออก"
+//  - ข้อความที่วาง: รหัส, ชื่อ [, กลุ่ม]
+// คืน rows: [{ code, name, group }] (group เป็นตัวเลขหรือ null)
 export function parseRows(text) {
   const rows = [], seen = new Set()
-  let skipped = 0
+  let skipped = 0, withdrawn = 0
+  let off = { name: 1, group: 3, from: 5 }     // ตำแหน่งคอลัมน์เทียบกับช่องรหัสนักศึกษา (ค่าตั้งต้นตามไฟล์ทะเบียน)
   for (const line of text.split(/\r?\n/)) {
     if (!line.trim()) continue
-    let f = line.split(/\t|,|;/).map(s => s.trim()).filter(Boolean)
-    if (f.length < 2) f = line.trim().split(/\s{2,}|\s+/)             // กรณีคั่นด้วยช่องว่าง
-    const i = f.findIndex(x => /^\d{10}$/.test(x))
-    if (i < 0) continue
-    let name = f[i + 1] ?? ''
-    // ถ้าไม่มีตัวคั่นเลย (ชื่อ-นามสกุลถูกแยกด้วยช่องว่าง) ให้รวมคำที่เหลือเป็นชื่อ
-    if (line.indexOf('\t') < 0 && !/[,;]/.test(line)) { name = f.slice(i + 1).join(' ') }
+    const cells = line.split('\t').map(s => s.trim())
+
+    // หัวตาราง: อ่านตำแหน่งคอลัมน์จริงของไฟล์
+    const hc = cells.indexOf('รหัสประจำตัว')
+    if (hc >= 0) {
+      const g = cells.indexOf('กลุ่ม'), n = cells.indexOf('ชื่อ'), f = cells.indexOf('จาก')
+      off = { name: n >= 0 ? n - hc : off.name, group: g >= 0 ? g - hc : off.group, from: f >= 0 ? f - hc : off.from }
+      continue
+    }
+
+    let code, name, group = null
+    const ti = cells.findIndex(x => /^\d{10}$/.test(x))
+    if (line.includes('\t') && ti >= 0) {
+      code = cells[ti]
+      name = cells[ti + off.name] ?? ''
+      let g = cells[ti + off.group]
+      // "รหัส<แท็บ>ชื่อ<แท็บ>กลุ่ม" (รูปแบบที่ระบบแสดงในช่องวาง)
+      if (g === undefined && cells.length === ti + 3 && /^\d{1,2}$/.test(cells[ti + 2])) g = cells[ti + 2]
+      if (g && /^\d{1,2}$/.test(g)) group = +g
+      const from = cells[ti + off.from]
+      if (from === '2' || from === '4') { withdrawn++; continue }      // ถอน / โอนย้ายออก
+    } else {
+      let f = line.split(/,|;|\t/).map(s => s.trim()).filter(Boolean)
+      if (f.length < 2) f = line.trim().split(/\s{2,}|\s+/)             // กรณีคั่นด้วยช่องว่าง
+      const i = f.findIndex(x => /^\d{10}$/.test(x))
+      if (i < 0) continue
+      code = f[i]
+      const hasSep = /,|;/.test(line)
+      name = hasSep ? (f[i + 1] ?? '') : f.slice(i + 1).join(' ')      // ไม่มีตัวคั่น: รวมคำที่เหลือเป็นชื่อ
+      if (hasSep && f[i + 2] && /^\d{1,2}$/.test(f[i + 2])) group = +f[i + 2]
+    }
     if (!name || /^\d+$/.test(name)) { skipped++; continue }
-    if (seen.has(f[i])) { skipped++; continue }
-    seen.add(f[i])
-    rows.push({ code: f[i], name })   // เอาเฉพาะรหัสนักศึกษากับชื่อ-สกุล (คอลัมน์อื่นในไฟล์ทะเบียนไม่ใช้)
+    if (seen.has(code)) { skipped++; continue }
+    seen.add(code)
+    rows.push({ code, name, group })
   }
-  return { rows, skipped }
+  return { rows, skipped, withdrawn }
 }
 
 // ชื่อไฟล์แบบ 10901106_1_Year_2_2569.doc -> { course, group, term }
