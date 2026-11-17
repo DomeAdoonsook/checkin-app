@@ -202,3 +202,34 @@ button.textlink:hover { color:var(--pri); }
 .restable td.pct { font-weight:700; } .restable td.pct.low { color:var(--bad); }
 .sessrow { border-bottom:1px solid #8884; padding:6px 0; }
 button.sesshead { width:100%; display:flex; flex-wrap:wrap; gap:4px 14px; justify-content:flex-start; text-decoration:none; color:var(--fg); text-align:left; padding:8px 0; }
+
+/* สรุปตลอดเทอม */
+.stat.plain .n small { font-size:.9rem; color:var(--mut); font-weight:500; }
+.statusrow { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
+.badge2 { display:inline-block; padding:2px 10px; border-radius:999px; font-size:.8rem; font-weight:600; color:#111; background:#e5e7eb; white-space:nowrap; }
+.badge2.pass { background:#dcfce7; } .badge2.ok { background:#e0f2fe; }
+.badge2.risk { background:#fef3c7; } .badge2.fail { background:#fecaca; }
+.smallbtn { width:auto; margin:0; padding:8px 14px; font-size:.9rem; }
+.termhead { display:flex; flex-wrap:wrap; gap:4px 12px; align-items:center; justify-content:space-between; }
+.termhead h3 { margin:6px 0; }
+.termhead .link { width:auto; display:inline-flex; gap:6px; }
+.histrow { display:flex; align-items:center; gap:10px; margin:6px 0; }
+.histlabel { width:92px; font-size:.85rem; flex:none; }
+.histbar { flex:1; height:16px; background:var(--bg); border-radius:8px; overflow:hidden; }
+.histbar > div { height:100%; background:var(--pri); border-radius:8px; min-width:2px; }
+.histn { width:56px; text-align:right; font-size:.85rem; flex:none; }
+@media print {
+  .print-term, .print-term * { visibility:visible; }
+  .print-term { position:absolute; left:0; top:0; width:100%; color:#000; background:#fff; box-shadow:none; }
+  .print-term .tablewrap { overflow:visible; max-height:none; border:0; }
+  .print-term .noprint { display:none; }
+}
+
+/* การ์ดสรุปตลอดเทอมของนักศึกษา */
+.termtop { display:flex; flex-wrap:wrap; gap:6px 10px; justify-content:space-between; align-items:center; }
+.termcard p { margin:6px 0; }
+.meter { position:relative; height:12px; background:var(--bg); border-radius:8px; overflow:hidden; margin:10px 0; border:1px solid #8883; }
+.meterfill { height:100%; border-radius:8px; background:var(--pri); }
+.meterfill.pass { background:#16a34a; } .meterfill.risk { background:#d97706; } .meterfill.fail { background:#dc2626; }
+.meterline { position:absolute; top:-2px; bottom:-2px; width:2px; background:#111; opacity:.55; }
+.warntext { color:var(--warn); font-weight:600; }

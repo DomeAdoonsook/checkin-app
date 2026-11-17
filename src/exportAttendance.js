@@ -42,6 +42,7 @@ export async function exportAttendance(section) {
   const sheets = buildSheets({
     course: `${section.courses.code} ${section.courses.name ?? ''}`.trim(),
     term: section.term, group: section.group_no, sessions, students, records,
+    planned: section.planned_sessions, minPct: section.min_attendance_pct,
   })
   await writeExcelFile(sheets).toFile(fileNameFor(section.courses.code, section.term, section.group_no))
   return { sessions: sessions.length, students: students.length, records: records.length }

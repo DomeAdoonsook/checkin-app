@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Html5Qrcode } from 'html5-qrcode'
 import { supabase, deviceId, statusLabel, errMsg } from './supabase.js'
 import Icon from './Icon.jsx'
+import { termStatus, STATUS_LABEL } from './attendanceStats.js'
 
 function getPosition() {
   return new Promise((resolve, reject) => {
@@ -43,6 +44,7 @@ function Result({ r, onDone }) {
 export default function Student({ profile, scan, view = 'checkin', onScanDone }) {
   const [openSessions, setOpen] = useState([])
   const [records, setRecords] = useState([])
+  const [terms, setTerms] = useState([])   // สรุปตลอดเทอมต่อวิชา
   const [result, setResult] = useState(null)
   const [error, setError] = useState('')
   const [scanning, setScanning] = useState(false)
@@ -72,6 +74,24 @@ export default function Student({ profile, scan, view = 'checkin', onScanDone })
         .order('checked_at', { ascending: false }).limit(60),
     ])
     setOpen(s.data ?? []); setRecords(h.data ?? [])
+
+    // สรุปตลอดเทอมต่อวิชาที่ลงทะเบียน (เทียบกับจำนวนคาบทั้งเทอมและเกณฑ์ขั้นต่ำ)
+    try {
+      const [en, cs, my] = await Promise.all([
+        supabase.from('enrollments').select('section_id, sections(id, term, group_no, planned_sessions, min_attendance_pct, courses(code, name))'),
+        supabase.from('class_sessions').select('id, section_id').not('closed_at', 'is', null),
+        supabase.from('attendance').select('session_id, status').limit(5000),
+      ])
+      if (en.error) throw en.error
+      const got = new Map((my.data ?? []).map(r => [r.session_id, r.status]))
+      setTerms((en.data ?? []).map(e => e.sections).filter(Boolean).map(sec => {
+        const ids = (cs.data ?? []).filter(c => c.section_id === sec.id).map(c => c.id)
+        const c = { present: 0, late: 0, leave: 0, absent: 0, pending: 0 }
+        for (const id of ids) c[got.get(id) ?? 'absent']++
+        return { sec, counts: c, closed: ids.length,
+          t: termStatus({ attended: c.present + c.late, closed: ids.length, planned: sec.planned_sessions, minPct: sec.min_attendance_pct }) }
+      }))
+    } catch { setTerms([]) }
   }
   useEffect(() => { load() }, [])
 
@@ -138,8 +158,32 @@ export default function Student({ profile, scan, view = 'checkin', onScanDone })
             </button>}
       </section>}
 
+      {view === 'history' && terms.map(({ sec, counts, closed, t }) => (
+        <section className="card termcard" key={sec.id}>
+          <div className="termtop">
+            <b>{sec.courses.code} {sec.courses.name ?? ''}</b>
+            <span className={'badge2 ' + t.status}>{STATUS_LABEL[t.status]}</span>
+          </div>
+          <p className="muted">ภาค {sec.term} · กลุ่ม {sec.group_no}</p>
+          <div className="meter"><div className={'meterfill ' + t.status} style={{ width: `${Math.min(100, Math.round((t.pct ?? 0) * 100))}%` }} />
+            <i className="meterline" style={{ left: `${sec.min_attendance_pct ?? 80}%` }} /></div>
+          <p>
+            เข้าเรียน <b>{counts.present + counts.late}</b> ครั้ง จากทั้งเทอม {t.total} คาบ
+            ({Math.round((t.pct ?? 0) * 100)}% · เกณฑ์ {sec.min_attendance_pct ?? 80}% = อย่างน้อย {t.required} ครั้ง)
+          </p>
+          <p className="muted">
+            มา {counts.present} · สาย {counts.late} · ลา {counts.leave} · ขาด {counts.absent} · คาบที่เรียนไปแล้ว {closed}/{t.total}
+          </p>
+          <p className={t.status === 'fail' ? 'err' : t.status === 'risk' ? 'warntext' : 'muted'}>
+            {t.status === 'pass' ? 'เข้าเรียนครบเกณฑ์แล้ว'
+              : t.status === 'fail' ? 'ต่อให้มาครบทุกคาบที่เหลือ ก็ไม่ถึงเกณฑ์แล้ว กรุณาติดต่ออาจารย์ผู้สอน'
+              : `ขาดได้อีกไม่เกิน ${t.allowed} ครั้ง จึงจะยังถึงเกณฑ์${t.status === 'risk' ? ' (เสี่ยง ระวังอย่าขาดเพิ่ม)' : ''}`}
+          </p>
+        </section>
+      ))}
+
       {view === 'history' && <section className="card">
-        <h2>การมาเรียนของฉัน</h2>
+        <h2>การมาเรียนของฉัน (รายวัน)</h2>
         {Object.keys(byCourse).length === 0 && <p className="muted">ยังไม่มีข้อมูล</p>}
         {Object.entries(byCourse).map(([k, rows]) => {
           const n = s => rows.filter(r => r.status === s).length
