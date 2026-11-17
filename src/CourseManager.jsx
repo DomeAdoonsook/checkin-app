@@ -10,7 +10,8 @@ export default function CourseManager({ isAdmin }) {
   const [open, setOpen] = useState(false)
   const [teachers, setTeachers] = useState([])
   const [sections, setSections] = useState([])
-  const [f, setF] = useState({ code: '', name: '', term: '', group: '1', teacher: '' })
+  const BLANK = { code: '', name: '', term: '', group: '1', teacher: '', hasLab: false, labN: '8' }
+  const [f, setF] = useState(BLANK)
   const [text, setText] = useState('')
   const [fileName, setFileName] = useState('')
   const [msg, setMsg] = useState(null)   // { ok, text }
@@ -80,13 +81,14 @@ export default function CourseManager({ isAdmin }) {
     const { data, error } = await supabase.rpc('create_course', {
       p_code: f.code.trim(), p_name: f.name.trim(), p_term: f.term.trim(), p_group: +f.group || 1,
       p_students: rows, p_teacher: f.teacher || null,
+      ...(f.hasLab ? { p_lab: Math.max(1, +f.labN || 1) } : {}),   // ส่งเมื่อติ๊กว่ามีแล็บเท่านั้น (ไม่ทับค่าเดิมของกลุ่มที่นำเข้าซ้ำ)
     })
     setBusy(false)
     if (error) return setMsg({ text: errMsg(error) })
     setMsg({ ok: true, text: `สร้างเรียบร้อย: ลงทะเบียน ${data.enrolled} คน (นักศึกษาใหม่ในระบบ ${data.new_students} คน) ` +
       (!isAdmin ? '— คุณเป็นผู้สอนหลักของกลุ่มนี้แล้ว ไปที่ "วิชาที่ฉันสอน" เพื่อเปิดคาบหรือออกรหัสเปิดใช้งาน'
         : f.teacher ? 'และมอบหมายอาจารย์แล้ว' : '— ยังไม่ได้เลือกอาจารย์ผู้สอน') })
-    setText(''); setFileName(''); setF({ code: '', name: '', term: '', group: '1', teacher: '' })
+    setText(''); setFileName(''); setF(BLANK)
     load()
   }
 
@@ -126,7 +128,20 @@ export default function CourseManager({ isAdmin }) {
           <label>รหัสวิชา <input value={f.code} onChange={e => setF({ ...f, code: e.target.value })} /></label>
           <label>ชื่อวิชา <input value={f.name} onChange={e => setF({ ...f, name: e.target.value })} /></label>
           <label>ภาคเรียน (เช่น 2/2569) <input value={f.term} onChange={e => setF({ ...f, term: e.target.value })} /></label>
-          <label>กลุ่มเรียน <input type="number" min="1" value={f.group} onChange={e => setF({ ...f, group: e.target.value })} /></label>
+          <label>กลุ่มเรียน (หมู่) <input type="number" min="1" value={f.group} onChange={e => setF({ ...f, group: e.target.value })} /></label>
+          <p className="muted">
+            วิชาที่มีหลายหมู่เรียน: กรอกรหัสวิชาและภาคเรียนเดิม เปลี่ยนเลขกลุ่ม แล้วนำเข้ารายชื่อของหมู่นั้น
+            (คาบบรรยายเปิดรวมทุกหมู่ได้ ส่วนคาบแล็บเปิดแยกทีละหมู่)
+          </p>
+          <label className="check">
+            <input type="checkbox" checked={f.hasLab} onChange={e => setF({ ...f, hasLab: e.target.checked })} />
+            วิชานี้มีคาบปฏิบัติ (แล็บ)
+          </label>
+          {f.hasLab && (
+            <label>จำนวนคาบแล็บทั้งเทอม
+              <input type="number" min="1" max="200" value={f.labN} onChange={e => setF({ ...f, labN: e.target.value })} />
+            </label>
+          )}
           {isAdmin ? (
             <label>อาจารย์ผู้สอนหลัก
               <select value={f.teacher} onChange={e => setF({ ...f, teacher: e.target.value })}>

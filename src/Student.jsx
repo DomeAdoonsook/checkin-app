@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Html5Qrcode } from 'html5-qrcode'
 import { supabase, deviceId, statusLabel, errMsg } from './supabase.js'
 import Icon from './Icon.jsx'
-import { termStatus, STATUS_LABEL } from './attendanceStats.js'
+import { termStatus, combineStatus, planOf, kindOf, STATUS_LABEL, KIND_LABEL } from './attendanceStats.js'
 
 function getPosition() {
   return new Promise((resolve, reject) => {
@@ -65,31 +65,42 @@ export default function Student({ profile, scan, view = 'checkin', onScanDone })
   }, [view])
 
   async function load() {
-    const [s, h] = await Promise.all([
-      supabase.from('class_sessions')
-        .select('id, opened_at, sections(term, group_no, courses(code, name))')
-        .is('closed_at', null).order('opened_at', { ascending: false }),
+    const openQ = cols => supabase.from('class_sessions').select(cols)
+      .is('closed_at', null).order('opened_at', { ascending: false })
+    const [s0, h] = await Promise.all([
+      openQ('id, opened_at, kind, combined, course_id, sections(term, group_no, courses(code, name))'),
       supabase.from('attendance')
         .select('status, method, checked_at, class_sessions(opened_at, sections(courses(code, name)))')
         .order('checked_at', { ascending: false }).limit(60),
     ])
+    const s = s0.error ? await openQ('id, opened_at, sections(term, group_no, courses(code, name))') : s0   // ฐานข้อมูลเก่า
     setOpen(s.data ?? []); setRecords(h.data ?? [])
 
-    // สรุปตลอดเทอมต่อวิชาที่ลงทะเบียน (เทียบกับจำนวนคาบทั้งเทอมและเกณฑ์ขั้นต่ำ)
+    // สรุปตลอดเทอมต่อวิชาที่ลงทะเบียน (บรรยาย/แล็บแยกกัน เทียบกับจำนวนคาบทั้งเทอมและเกณฑ์ขั้นต่ำ)
     try {
-      const [en, cs, my] = await Promise.all([
-        supabase.from('enrollments').select('section_id, sections(id, term, group_no, planned_sessions, min_attendance_pct, courses(code, name))'),
-        supabase.from('class_sessions').select('id, section_id').not('closed_at', 'is', null),
-        supabase.from('attendance').select('session_id, status').limit(5000),
-      ])
+      const secCols = 'id, term, group_no, planned_sessions, min_attendance_pct, courses(code, name)'
+      const enrQ = extra => supabase.from('enrollments').select(`section_id, sections(${secCols}${extra})`)
+      const csQ = cols => supabase.from('class_sessions').select(cols).not('closed_at', 'is', null)
+      let [en, cs] = await Promise.all([
+        enrQ(', course_id, planned_lab_sessions, min_lab_pct'), csQ('id, section_id, kind, combined, course_id, term')])
+      if (en.error || cs.error) [en, cs] = await Promise.all([enrQ(''), csQ('id, section_id')])   // ฐานข้อมูลเก่า
+      const my = await supabase.from('attendance').select('session_id, status').limit(5000)
       if (en.error) throw en.error
       const got = new Map((my.data ?? []).map(r => [r.session_id, r.status]))
       setTerms((en.data ?? []).map(e => e.sections).filter(Boolean).map(sec => {
-        const ids = (cs.data ?? []).filter(c => c.section_id === sec.id).map(c => c.id)
-        const c = { present: 0, late: 0, leave: 0, absent: 0, pending: 0 }
-        for (const id of ids) c[got.get(id) ?? 'absent']++
-        return { sec, counts: c, closed: ids.length,
-          t: termStatus({ attended: c.present + c.late, closed: ids.length, planned: sec.planned_sessions, minPct: sec.min_attendance_pct }) }
+        // คาบที่เกี่ยวกับกลุ่มนี้: คาบของกลุ่มเอง + บรรยายรวมของวิชา+ภาคเรียนเดียวกัน
+        const mine = (cs.data ?? []).filter(c => c.section_id === sec.id || (c.combined && c.course_id === sec.course_id && c.term === sec.term))
+        const plan = planOf(sec)
+        const part = kind => {
+          const ids = mine.filter(c => kindOf(c) === kind).map(c => c.id)
+          const counts = { present: 0, late: 0, leave: 0, absent: 0, pending: 0 }
+          for (const id of ids) counts[got.get(id) ?? 'absent']++
+          return { counts, closed: ids.length,
+            t: termStatus({ attended: counts.present + counts.late, closed: ids.length, planned: plan[kind].planned, minPct: plan[kind].minPct }) }
+        }
+        const lec = part('lecture'), lab = part('lab')
+        const hasLab = plan.lab.planned > 0 || lab.closed > 0
+        return { sec, lec, lab, hasLab, status: combineStatus([lec.t.status, hasLab ? lab.t.status : null]) }
       }))
     } catch { setTerms([]) }
   }
@@ -143,7 +154,14 @@ export default function Student({ profile, scan, view = 'checkin', onScanDone })
         {openSessions.length === 0
           ? <p className="muted">ตอนนี้ไม่มีคาบที่เปิดเช็คชื่อ</p>
           : openSessions.map(s => (
-            <p key={s.id}><span className="dot" /> {s.sections.courses.code} {s.sections.courses.name ?? ''} (กลุ่ม {s.sections.group_no})</p>
+            <p key={s.id}>
+              <span className="dot" />{' '}
+              {(() => {
+                const c = s.sections?.courses ?? terms.find(x => x.sec.course_id === s.course_id)?.sec.courses
+                return <>{c?.code} {c?.name ?? ''}{s.combined ? '' : s.sections ? ` (กลุ่ม ${s.sections.group_no})` : ''}</>
+              })()}{' '}
+              <span className={'kindtag ' + kindOf(s)}>{KIND_LABEL[kindOf(s)]}{s.combined ? ' รวมทุกหมู่' : ''}</span>
+            </p>
           ))}
         {gps === 'denied'
           ? <p className="err"><Icon name="pin" size={16} /> ไม่ได้รับอนุญาตใช้ตำแหน่ง กรุณาเปิดสิทธิ์ตำแหน่งให้เว็บนี้ในการตั้งค่าเบราว์เซอร์</p>
@@ -158,27 +176,36 @@ export default function Student({ profile, scan, view = 'checkin', onScanDone })
             </button>}
       </section>}
 
-      {view === 'history' && terms.map(({ sec, counts, closed, t }) => (
+      {view === 'history' && terms.map(({ sec, lec, lab, hasLab, status }) => (
         <section className="card termcard" key={sec.id}>
           <div className="termtop">
             <b>{sec.courses.code} {sec.courses.name ?? ''}</b>
-            <span className={'badge2 ' + t.status}>{STATUS_LABEL[t.status]}</span>
+            <span className={'badge2 ' + status}>{STATUS_LABEL[status]}</span>
           </div>
           <p className="muted">ภาค {sec.term} · กลุ่ม {sec.group_no}</p>
-          <div className="meter"><div className={'meterfill ' + t.status} style={{ width: `${Math.min(100, Math.round((t.pct ?? 0) * 100))}%` }} />
-            <i className="meterline" style={{ left: `${sec.min_attendance_pct ?? 80}%` }} /></div>
-          <p>
-            เข้าเรียน <b>{counts.present + counts.late}</b> ครั้ง จากทั้งเทอม {t.total} คาบ
-            ({Math.round((t.pct ?? 0) * 100)}% · เกณฑ์ {sec.min_attendance_pct ?? 80}% = อย่างน้อย {t.required} ครั้ง)
-          </p>
-          <p className="muted">
-            มา {counts.present} · สาย {counts.late} · ลา {counts.leave} · ขาด {counts.absent} · คาบที่เรียนไปแล้ว {closed}/{t.total}
-          </p>
-          <p className={t.status === 'fail' ? 'err' : t.status === 'risk' ? 'warntext' : 'muted'}>
-            {t.status === 'pass' ? 'เข้าเรียนครบเกณฑ์แล้ว'
-              : t.status === 'fail' ? 'ต่อให้มาครบทุกคาบที่เหลือ ก็ไม่ถึงเกณฑ์แล้ว กรุณาติดต่ออาจารย์ผู้สอน'
-              : `ขาดได้อีกไม่เกิน ${t.allowed} ครั้ง จึงจะยังถึงเกณฑ์${t.status === 'risk' ? ' (เสี่ยง ระวังอย่าขาดเพิ่ม)' : ''}`}
-          </p>
+          {[['lecture', lec, sec.min_attendance_pct ?? 80], ...(hasLab ? [['lab', lab, sec.min_lab_pct ?? 80]] : [])].map(([k, x, min]) => (
+            <div key={k} className="kindblock">
+              <div className="termtop">
+                <span className={'kindtag ' + k}>{KIND_LABEL[k]}</span>
+                <span className={'badge2 ' + x.t.status}>{STATUS_LABEL[x.t.status]}</span>
+              </div>
+              <div className="meter"><div className={'meterfill ' + x.t.status} style={{ width: `${Math.min(100, Math.round((x.t.pct ?? 0) * 100))}%` }} />
+                <i className="meterline" style={{ left: `${min}%` }} /></div>
+              <p>
+                เข้าเรียน <b>{x.counts.present + x.counts.late}</b> ครั้ง จากทั้งเทอม {x.t.total} คาบ
+                ({Math.round((x.t.pct ?? 0) * 100)}% · เกณฑ์ {min}% = อย่างน้อย {x.t.required} ครั้ง)
+              </p>
+              <p className="muted">
+                มา {x.counts.present} · สาย {x.counts.late} · ลา {x.counts.leave} · ขาด {x.counts.absent} · เรียนไปแล้ว {x.closed}/{x.t.total} คาบ
+              </p>
+              <p className={x.t.status === 'fail' ? 'err' : x.t.status === 'risk' ? 'warntext' : 'muted'}>
+                {x.t.status === 'pass' ? 'เข้าเรียนครบเกณฑ์แล้ว'
+                  : x.t.status === 'fail' ? 'ต่อให้มาครบทุกคาบที่เหลือ ก็ไม่ถึงเกณฑ์แล้ว กรุณาติดต่ออาจารย์ผู้สอน'
+                  : `ขาดได้อีกไม่เกิน ${x.t.allowed} ครั้ง จึงจะยังถึงเกณฑ์${x.t.status === 'risk' ? ' (เสี่ยง ระวังอย่าขาดเพิ่ม)' : ''}`}
+              </p>
+            </div>
+          ))}
+          {hasLab && <p className="muted">ต้องผ่านเกณฑ์ทั้งบรรยายและแล็บ</p>}
         </section>
       ))}
 

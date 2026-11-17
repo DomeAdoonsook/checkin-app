@@ -233,3 +233,15 @@ button.sesshead { width:100%; display:flex; flex-wrap:wrap; gap:4px 14px; justif
 .meterfill.pass { background:#16a34a; } .meterfill.risk { background:#d97706; } .meterfill.fail { background:#dc2626; }
 .meterline { position:absolute; top:-2px; bottom:-2px; width:2px; background:#111; opacity:.55; }
 .warntext { color:var(--warn); font-weight:600; }
+
+/* ประเภทคาบ: บรรยาย / แล็บ */
+.kindtag { display:inline-block; padding:1px 8px; border-radius:6px; font-size:.75rem; font-weight:600; background:#e0f2fe; color:#075985; }
+.kindtag.lab { background:#fef3c7; color:#92400e; }
+.kindbox { margin:10px 0 4px; }
+.seg { display:flex; gap:0; border:1px solid var(--pri); border-radius:10px; overflow:hidden; margin-bottom:8px; }
+.segbtn { margin:0; flex:1; border-radius:0; background:transparent; color:var(--pri); padding:10px; font-size:.95rem; }
+.segbtn.on { background:var(--pri); color:#fff; }
+.policylabel { margin:12px 0 2px; font-weight:600; }
+.restable th.grouphead { background:#bfdbfe; } .restable th.subhead { font-size:.78rem; font-weight:500; }
+.restable thead tr:nth-child(2) th { top:32px; }
+.kindblock { border-top:1px solid #8883; margin-top:10px; padding-top:6px; }

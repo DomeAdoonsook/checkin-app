@@ -1,23 +1,38 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase, errMsg } from './supabase.js'
 import { loadSectionData, exportAttendance } from './exportAttendance.js'
-import { computeStats, LABEL, STATUS_LABEL, DEFAULT_PLAN } from './attendanceStats.js'
+import { computeStats, planOf, kindOf, LABEL, KIND_LABEL, STATUS_LABEL } from './attendanceStats.js'
 import { Roster } from './Teacher.jsx'
 import Icon from './Icon.jsx'
 
-const COLS = 'id, term, group_no, planned_sessions, min_attendance_pct, courses(code, name)'
+const BASE = 'id, course_id, term, group_no, courses(code, name)'
+const COLS = `${BASE}, planned_sessions, min_attendance_pct, planned_lab_sessions, min_lab_pct`
 const when = d => new Date(d).toLocaleString('th-TH', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 const pctText = p => (p == null ? '–' : `${Math.round(p * 100)}%`)
 const read = (k, d) => { try { return sessionStorage.getItem(k) ?? d } catch { return d } }
 const BINS = [['ต่ำกว่า 60%', 0, 60], ['60–69%', 60, 70], ['70–79%', 70, 80], ['80–89%', 80, 90], ['90–100%', 90, 101]]
+const toPlan = p => ({ lecture: { planned: p.lecPlanned, minPct: p.lecMin }, lab: { planned: p.labPlanned, minPct: p.labMin } })
+const fromSection = sec => {
+  const p = planOf(sec)
+  return { lecPlanned: p.lecture.planned, lecMin: p.lecture.minPct, labPlanned: p.lab.planned, labMin: p.lab.minPct }
+}
 
-// หน้า "ผลการเช็คชื่อ": สรุปตลอดเทอม / สรุปรายคน / รายคาบ ของแต่ละวิชา
+function NumField({ label, value, min, max, onChange }) {
+  return (
+    <label className="inline">{label}
+      <input type="number" min={min} max={max} value={value}
+        onChange={e => onChange(Math.min(max, Math.max(min, +e.target.value || min)))} />
+    </label>
+  )
+}
+
+// หน้า "ผลการเช็คชื่อ": สรุปตลอดเทอม / รายคน × รายคาบ / รายคาบ ของแต่ละวิชา (แยกบรรยาย/แล็บ)
 export default function Results({ isAdmin }) {
   const [sections, setSections] = useState(null)
   const [sid, setSid] = useState(() => read('resultsSection', ''))
   const [data, setData] = useState(null)
   const [tab, setTab] = useState('term')
-  const [plan, setPlan] = useState({ planned: DEFAULT_PLAN.planned, minPct: DEFAULT_PLAN.minPct })
+  const [plan, setPlan] = useState(fromSection(null))
   const [lowFirst, setLowFirst] = useState(false)
   const [openId, setOpenId] = useState(null)
   const [err, setErr] = useState('')
@@ -31,9 +46,9 @@ export default function Results({ isAdmin }) {
       if (isAdmin) return supabase.from('sections').select(cols).order('term', { ascending: false })
       return supabase.from('section_teachers').select(`sections(${cols})`).eq('teacher_id', session.user.id)
     }
-    // ถ้ายังไม่ได้ติดตั้ง SQL นโยบาย (คอลัมน์ planned_sessions) ให้ถอยไปใช้คอลัมน์พื้นฐานแทน แสดงค่าเริ่มต้น 16 คาบ / 80%
+    // ถ้ายังไม่ได้ติดตั้ง SQL นโยบาย/แล็บ ให้ถอยไปใช้คอลัมน์พื้นฐาน แสดงค่าเริ่มต้น 16 คาบ / 80%
     let res = await fetchList(COLS)
-    if (res.error) res = await fetchList('id, term, group_no, courses(code, name)')
+    if (res.error) res = await fetchList(BASE)
     const list = isAdmin ? (res.data ?? []) : (res.data ?? []).map(r => r.sections).filter(Boolean)
     setSections(list)
     setSid(cur => (list.some(s => s.id === cur) ? cur : list[0]?.id ?? ''))
@@ -42,12 +57,11 @@ export default function Results({ isAdmin }) {
   useEffect(() => { loadSections() }, [isAdmin])
 
   const section = sections?.find(s => s.id === sid)
+  const saved = fromSection(section)
 
   // เปลี่ยนวิชา -> ใช้นโยบายที่บันทึกไว้ของวิชานั้น
-  useEffect(() => {
-    if (!section) return
-    setPlan({ planned: section.planned_sessions ?? DEFAULT_PLAN.planned, minPct: section.min_attendance_pct ?? DEFAULT_PLAN.minPct })
-  }, [section?.id, section?.planned_sessions, section?.min_attendance_pct])
+  useEffect(() => { if (section) setPlan(fromSection(section)) },
+    [section?.id, section?.planned_sessions, section?.min_attendance_pct, section?.planned_lab_sessions, section?.min_lab_pct])
 
   async function reload() {
     if (!section) return
@@ -59,15 +73,16 @@ export default function Results({ isAdmin }) {
 
   function pick(id) { setSid(id); try { sessionStorage.setItem('resultsSection', id) } catch { /* ignore */ } }
 
-  const stats = useMemo(
-    () => (data ? computeStats({ ...data, planned: plan.planned, minPct: plan.minPct }) : null),
-    [data, plan.planned, plan.minPct])
-  const dirty = section && (plan.planned !== (section.planned_sessions ?? DEFAULT_PLAN.planned) ||
-                            plan.minPct !== (section.min_attendance_pct ?? DEFAULT_PLAN.minPct))
+  const stats = useMemo(() => (data ? computeStats({ ...data, plan: toPlan(plan) }) : null), [data, plan])
+  const dirty = section && JSON.stringify(plan) !== JSON.stringify(saved)
+  const hasLab = !!stats?.hasLab
 
   async function savePlan() {
     setErr(''); setNote('')
-    const { error } = await supabase.rpc('set_section_policy', { p_section: section.id, p_planned: plan.planned, p_min: plan.minPct })
+    const { error } = await supabase.rpc('set_section_policy', {
+      p_section: section.id, p_planned: plan.lecPlanned, p_min: plan.lecMin,
+      p_lab_planned: plan.labPlanned, p_lab_min: plan.labMin,
+    })
     if (error) return setErr(errMsg(error))
     await loadSections()
     setNote('บันทึกนโยบายแล้ว นักศึกษาจะเห็นสถานะตามค่านี้')
@@ -75,19 +90,30 @@ export default function Results({ isAdmin }) {
 
   async function doExport() {
     setExporting(true); setErr('')
-    try { await exportAttendance({ ...section, planned_sessions: plan.planned, min_attendance_pct: plan.minPct }) }
-    catch (e) { setErr('ส่งออกไม่สำเร็จ: ' + errMsg(e)) }
+    try {
+      await exportAttendance({
+        ...section, planned_sessions: plan.lecPlanned, min_attendance_pct: plan.lecMin,
+        planned_lab_sessions: plan.labPlanned, min_lab_pct: plan.labMin,
+      })
+    } catch (e) { setErr('ส่งออกไม่สำเร็จ: ' + errMsg(e)) }
     setExporting(false)
   }
 
   if (sections === null) return <p className="muted">กำลังโหลด…</p>
   if (sections.length === 0) return <p className="card muted">ยังไม่มีวิชาให้ดูผล ไปที่เมนู "เพิ่มรายวิชา" หรือ "จัดการวิชา" เพื่อเพิ่มวิชาก่อน</p>
 
-  const rowsLow = stats ? [...stats.perStudent].sort((a, b) => (a.term.pct ?? 2) - (b.term.pct ?? 2)) : []
-  const lowStudents = stats ? stats.perStudent.filter(s => s.term.status === 'risk' || s.term.status === 'fail') : []
+  // % ตามคาบทั้งเทอมรวมบรรยาย+แล็บ (ใช้เรียงและทำกราฟ)
+  const termPct = r => {
+    const total = r.lec.term.total + (hasLab ? r.lab.term.total : 0)
+    return total ? (r.lec.attended + (hasLab ? r.lab.attended : 0)) / total : null
+  }
+  const rowsLow = stats ? [...stats.perStudent].sort((a, b) => (termPct(a) ?? 2) - (termPct(b) ?? 2)) : []
+  const lowStudents = stats ? stats.perStudent.filter(s => s.status === 'risk' || s.status === 'fail') : []
   const hist = stats ? BINS.map(([label, lo, hi]) => ({
-    label, n: stats.perStudent.filter(s => s.term.pct != null && s.term.pct * 100 >= lo && s.term.pct * 100 < hi).length })) : []
+    label, n: stats.perStudent.filter(s => { const p = termPct(s); return p != null && p * 100 >= lo && p * 100 < hi }).length })) : []
   const maxBin = Math.max(1, ...hist.map(h => h.n))
+  const kinds = hasLab ? ['lecture', 'lab'] : ['lecture']
+  const first = stats?.perStudent[0]
 
   return (
     <>
@@ -106,7 +132,16 @@ export default function Results({ isAdmin }) {
 
         {stats && (
           <div className="stats">
-            <div className="stat plain"><span className="n">{stats.closedCount}<small>/{stats.perStudent[0]?.term.total ?? plan.planned}</small></span><span className="l">คาบที่ปิดแล้ว / ทั้งเทอม</span></div>
+            <div className="stat plain">
+              <span className="n">{stats.closedBy.lecture}<small>/{first?.lec.term.total ?? plan.lecPlanned}</small></span>
+              <span className="l">คาบบรรยายที่ปิดแล้ว / ทั้งเทอม</span>
+            </div>
+            {hasLab && (
+              <div className="stat plain">
+                <span className="n">{stats.closedBy.lab}<small>/{first?.lab.term.total ?? plan.labPlanned}</small></span>
+                <span className="l">คาบแล็บที่ปิดแล้ว / ทั้งเทอม</span>
+              </div>
+            )}
             <div className="stat plain"><span className="n">{pctText(stats.avg)}</span><span className="l">เข้าเรียนเฉลี่ย (คาบที่ปิดแล้ว)</span></div>
             <div className={'stat plain' + (lowStudents.length ? ' hot' : '')}><span className="n">{lowStudents.length}</span><span className="l">เสี่ยง / ไม่ผ่านเกณฑ์</span></div>
             <div className="stat plain"><span className="n">{data.students.length}</span><span className="l">นักศึกษาในวิชา</span></div>
@@ -131,20 +166,21 @@ export default function Results({ isAdmin }) {
         <>
           <section className="card">
             <h3>นโยบายการเข้าเรียนของวิชานี้</h3>
+            <p className="policylabel">บรรยาย</p>
             <div className="res-opts">
-              <label className="inline">จำนวนคาบทั้งเทอม
-                <input type="number" min="1" max="200" value={plan.planned}
-                  onChange={e => setPlan(p => ({ ...p, planned: Math.max(1, +e.target.value || 1) }))} />
-              </label>
-              <label className="inline">เกณฑ์เข้าเรียนขั้นต่ำ (%)
-                <input type="number" min="0" max="100" value={plan.minPct}
-                  onChange={e => setPlan(p => ({ ...p, minPct: Math.min(100, Math.max(0, +e.target.value || 0)) }))} />
-              </label>
-              <button className="secondary smallbtn" disabled={!dirty} onClick={savePlan}>{dirty ? 'บันทึก' : 'บันทึกแล้ว'}</button>
+              <NumField label="จำนวนคาบทั้งเทอม" value={plan.lecPlanned} min={1} max={200} onChange={v => setPlan(p => ({ ...p, lecPlanned: v }))} />
+              <NumField label="เกณฑ์เข้าเรียนขั้นต่ำ (%)" value={plan.lecMin} min={0} max={100} onChange={v => setPlan(p => ({ ...p, lecMin: v }))} />
             </div>
+            <p className="policylabel">แล็บ <span className="muted">(ใส่จำนวนคาบ 0 = วิชานี้ไม่มีแล็บ)</span></p>
+            <div className="res-opts">
+              <NumField label="จำนวนคาบทั้งเทอม" value={plan.labPlanned} min={0} max={200} onChange={v => setPlan(p => ({ ...p, labPlanned: v }))} />
+              <NumField label="เกณฑ์เข้าเรียนขั้นต่ำ (%)" value={plan.labMin} min={0} max={100} onChange={v => setPlan(p => ({ ...p, labMin: v }))} />
+            </div>
+            <button className="secondary smallbtn" disabled={!dirty} onClick={savePlan}>{dirty ? 'บันทึกนโยบาย' : 'บันทึกแล้ว'}</button>
             <p className="muted">
-              ต้องเข้าเรียนอย่างน้อย <b>{stats.perStudent[0]?.term.required ?? '–'}</b> ครั้งจาก {stats.perStudent[0]?.term.total ?? plan.planned} คาบ
-              (มา + สาย นับเป็นเข้าเรียน, ลาไม่นับ){dirty ? ' · ยังไม่ได้บันทึก (นักศึกษายังเห็นค่าเดิม)' : ''}
+              บรรยายต้องเข้าอย่างน้อย <b>{first?.lec.term.required ?? '–'}</b> ครั้งจาก {first?.lec.term.total ?? plan.lecPlanned} คาบ
+              {hasLab && <> · แล็บต้องเข้าอย่างน้อย <b>{first?.lab.term.required ?? '–'}</b> ครั้งจาก {first?.lab.term.total ?? plan.labPlanned} คาบ (ต้องผ่านทั้งสองส่วน)</>}
+              {' '}(มา + สาย นับเป็นเข้าเรียน, ลาไม่นับ){dirty ? ' · ยังไม่ได้บันทึก (นักศึกษายังเห็นค่าเดิม)' : ''}
             </p>
             <div className="statusrow">
               {['pass', 'ok', 'risk', 'fail'].map(k => (
@@ -162,28 +198,39 @@ export default function Results({ isAdmin }) {
               <table className="restable">
                 <thead>
                   <tr>
-                    <th className="sticky c1">รหัส</th><th className="sticky c2">ชื่อ-สกุล</th>
-                    <th>มา</th><th>สาย</th><th>ลา</th><th>ขาด</th><th>% ตามคาบทั้งเทอม</th><th>ขาดได้อีก</th><th>สถานะ</th>
+                    <th className="sticky c1" rowSpan={hasLab ? 2 : 1}>รหัส</th>
+                    <th className="sticky c2" rowSpan={hasLab ? 2 : 1}>ชื่อ-สกุล</th>
+                    {kinds.map(k => <th key={k} colSpan={hasLab ? 4 : 4} className="grouphead">{KIND_LABEL[k]}</th>)}
+                    <th rowSpan={hasLab ? 2 : 1}>สถานะรวม</th>
+                  </tr>
+                  <tr>
+                    {kinds.flatMap(k => ['มา+สาย', '% ทั้งเทอม', 'ขาดได้อีก', 'สถานะ'].map(h => <th key={k + h} className="subhead">{h}</th>))}
                   </tr>
                 </thead>
                 <tbody>
                   {rowsLow.map(r => (
-                    <tr key={r.code} className={r.term.status === 'fail' ? 'warnrow' : ''}>
+                    <tr key={r.code} className={r.status === 'fail' ? 'warnrow' : ''}>
                       <td className="sticky c1">{r.code}</td><td className="sticky c2">{r.name}</td>
-                      <td>{r.counts.present}</td><td>{r.counts.late}</td><td>{r.counts.leave}</td><td>{r.counts.absent}</td>
-                      <td className="pct">{pctText(r.term.pct)}</td>
-                      <td>{r.term.status === 'fail' ? '–' : `${r.term.allowed} ครั้ง`}</td>
-                      <td><span className={'badge2 ' + r.term.status}>{STATUS_LABEL[r.term.status]}</span></td>
+                      {kinds.flatMap(k => {
+                        const x = k === 'lab' ? r.lab : r.lec
+                        return [
+                          <td key={k + 'a'}>{x.attended}/{x.closed}</td>,
+                          <td key={k + 'p'} className="pct">{pctText(x.term.pct)}</td>,
+                          <td key={k + 'm'}>{x.term.status === 'fail' ? '–' : `${x.term.allowed} ครั้ง`}</td>,
+                          <td key={k + 's'}><span className={'badge2 ' + x.term.status}>{STATUS_LABEL[x.term.status]}</span></td>,
+                        ]
+                      })}
+                      <td><span className={'badge2 ' + r.status}>{STATUS_LABEL[r.status]}</span></td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-            <p className="muted">เรียงคนที่เข้าเรียนน้อยสุดขึ้นก่อน · "ขาดได้อีก" = จำนวนครั้งที่ยังขาดได้โดยยังถึงเกณฑ์ · ไม่ผ่านเกณฑ์ = ต่อให้มาครบทุกคาบที่เหลือก็ไม่ถึงเกณฑ์</p>
+            <p className="muted">เรียงคนที่เข้าเรียนน้อยสุดขึ้นก่อน · "มา+สาย" = ครั้งที่เข้าเรียน / คาบที่ปิดแล้ว · "ขาดได้อีก" = จำนวนครั้งที่ยังขาดได้โดยยังถึงเกณฑ์ · ไม่ผ่านเกณฑ์ = ต่อให้มาครบทุกคาบที่เหลือก็ไม่ถึงเกณฑ์</p>
           </section>
 
           <section className="card">
-            <h3>การกระจายของ % เข้าเรียนตามคาบทั้งเทอม</h3>
+            <h3>การกระจายของ % เข้าเรียนตามคาบทั้งเทอม{hasLab ? ' (บรรยาย + แล็บรวมกัน)' : ''}</h3>
             {hist.map(h => (
               <div key={h.label} className="histrow">
                 <span className="histlabel">{h.label}</span>
@@ -205,13 +252,18 @@ export default function Results({ isAdmin }) {
                 <tr>
                   <th className="sticky c1">รหัส</th>
                   <th className="sticky c2">ชื่อ-สกุล</th>
-                  {data.sessions.map(s => <th key={s.id} title={s.closed_at ? '' : 'คาบที่ยังเปิดอยู่'}>{when(s.opened_at)}{!s.closed_at && ' •'}</th>)}
+                  {data.sessions.map(s => (
+                    <th key={s.id} title={s.closed_at ? '' : 'คาบที่ยังเปิดอยู่'}>
+                      {when(s.opened_at)}{!s.closed_at && ' •'}<br />
+                      <span className={'kindtag ' + kindOf(s)}>{KIND_LABEL[kindOf(s)]}{s.combined ? ' รวม' : ''}</span>
+                    </th>
+                  ))}
                   <th>มา</th><th>สาย</th><th>ลา</th><th>ขาด</th><th>%</th>
                 </tr>
               </thead>
               <tbody>
                 {(lowFirst ? [...stats.perStudent].sort((a, b) => (a.pct ?? 2) - (b.pct ?? 2)) : stats.perStudent).map(r => {
-                  const warn = r.term.status === 'risk' || r.term.status === 'fail'
+                  const warn = r.status === 'risk' || r.status === 'fail'
                   return (
                     <tr key={r.code} className={warn ? 'warnrow' : ''}>
                       <td className="sticky c1">{r.code}</td>
@@ -225,7 +277,7 @@ export default function Results({ isAdmin }) {
               </tbody>
             </table>
           </div>
-          <p className="muted">% ในตารางนี้ = (มา + สาย) ÷ คาบที่ปิดแล้ว · แถบแดง = เสี่ยง/ไม่ผ่านเกณฑ์ตลอดเทอม · ไม่มีรายการเช็คชื่อในคาบที่ปิดแล้ว นับเป็นขาด</p>
+          <p className="muted">% ในตารางนี้ = (มา + สาย) ÷ คาบที่ปิดแล้ว (รวมบรรยายและแล็บ) · แถบแดง = เสี่ยง/ไม่ผ่านเกณฑ์ตลอดเทอม · ไม่มีรายการเช็คชื่อในคาบที่ปิดแล้ว นับเป็นขาด</p>
         </section>
       )}
 
@@ -236,6 +288,7 @@ export default function Results({ isAdmin }) {
             <div key={s.id} className="sessrow">
               <button className="link sesshead" onClick={() => setOpenId(openId === s.id ? null : s.id)}>
                 <b>{when(s.opened_at)}</b>
+                <span className={'kindtag ' + kindOf(s)}>{KIND_LABEL[kindOf(s)]}{s.combined ? ' รวมทุกหมู่' : ''}</span>
                 <span>{s.closed_at ? 'ปิดแล้ว' : 'กำลังเปิดอยู่'}</span>
                 <span className="muted">มา {s.counts.present} · สาย {s.counts.late} · ลา {s.counts.leave} · ขาด {s.counts.absent}{s.counts.pending ? ` · รอตรวจ ${s.counts.pending}` : ''}</span>
               </button>

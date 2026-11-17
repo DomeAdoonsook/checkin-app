@@ -3,6 +3,7 @@ import QRCode from 'qrcode'
 import { supabase, statusLabel, errMsg } from './supabase.js'
 import Codes from './Codes.jsx'
 import Icon from './Icon.jsx'
+import { kindOf, KIND_LABEL } from './attendanceStats.js'
 
 function QrBox({ sessionId }) {
   const [img, setImg] = useState('')
@@ -31,14 +32,26 @@ export function Roster({ session }) {
   const [msg, setMsg] = useState('')
   const [resetInfo, setResetInfo] = useState(null)   // { code, name } แสดงครั้งเดียว
 
+  // กลุ่มเรียนที่อยู่ในคาบนี้: บรรยายรวม = ทุกกลุ่มของวิชา+ภาคเรียนเดียวกัน
+  async function sectionIds() {
+    if (!session.combined) return [session.section_id]
+    const { data: anchor } = await supabase.from('sections').select('course_id, term').eq('id', session.section_id).single()
+    if (!anchor) return [session.section_id]
+    const { data: sibs } = await supabase.from('sections').select('id').eq('course_id', anchor.course_id).eq('term', anchor.term)
+    return (sibs ?? []).map(s => s.id)
+  }
+
   async function load() {
+    const ids = await sectionIds()
     const [en, at] = await Promise.all([
-      supabase.from('enrollments').select('student_code, students(full_name)')
-        .eq('section_id', session.section_id).order('student_code'),
+      supabase.from('enrollments').select('student_code, students(full_name), sections(group_no)')
+        .in('section_id', ids).order('student_code'),
       supabase.from('attendance').select('*').eq('session_id', session.id),
     ])
     const map = Object.fromEntries((at.data ?? []).map(a => [a.student_code, a]))
-    setRows((en.data ?? []).map(e => ({ code: e.student_code, name: e.students?.full_name, att: map[e.student_code] })))
+    setRows((en.data ?? []).map(e => ({
+      code: e.student_code, name: e.students?.full_name, group: e.sections?.group_no, att: map[e.student_code],
+    })))
   }
   useEffect(() => { load(); const t = setInterval(load, 4000); return () => clearInterval(t) }, [session.id])
 
@@ -76,7 +89,7 @@ export function Roster({ session }) {
         {rows.map(r => (
           <li key={r.code} className={r.att ? r.att.status : 'none'}>
             <div className="row">
-              <span><b>{r.code.slice(-3)}</b> {r.name}</span>
+              <span><b>{r.code.slice(-3)}</b> {r.name}{session.combined && r.group != null && <span className="muted"> · หมู่ {r.group}</span>}</span>
               <span>
                 {r.att ? statusLabel[r.att.status] : '—'}
                 {r.att?.method === 'teacher_manual' && <Icon name="edit" size={14} />}
@@ -117,6 +130,8 @@ export default function Teacher({ onGo }) {
   const [sessions, setSessions] = useState([])
   const [active, setActive] = useState(null)
   const [codesFor, setCodesFor] = useState(null)   // section id ที่เปิดแผงออกรหัส
+  const [allSecs, setAllSecs] = useState([])       // กลุ่มเรียนที่มองเห็นได้ (รวมหมู่อื่นของวิชาเดียวกัน)
+  const [opts, setOpts] = useState({})              // ตัวเลือกเปิดคาบต่อกลุ่มเรียน: ชนิดคาบ + บรรยายรวม
   const [geos, setGeos] = useState({})            // ค่าที่กำลังแก้ต่อกลุ่มเรียน (ยังไม่บันทึก)
   const [msg, setMsg] = useState('')
   const [note, setNote] = useState('')
@@ -128,16 +143,28 @@ export default function Teacher({ onGo }) {
   })
   const setGeoOf = (sec, patch) => setGeos(p => ({ ...p, [sec.id]: { ...geoOf(sec), ...patch } }))
 
+  const optsOf = sec => ({ kind: 'lecture', combined: true, ...(opts[sec.id] ?? {}) })
+  const setOptsOf = (sec, patch) => setOpts(p => ({ ...p, [sec.id]: { ...optsOf(sec), ...patch } }))
+  const sibsOf = sec => allSecs.filter(x => x.course_id === sec.course_id && x.term === sec.term && x.id !== sec.id)
+  const hasLab = sec => (sec.planned_lab_sessions ?? 0) > 0
+  // คาบที่เปิดอยู่ของกลุ่มนี้ (รวมบรรยายรวมที่อาจารย์อีกหมู่เป็นคนเปิด)
+  const openFor = sec => sessions.find(s => s.section_id === sec.id ||
+    (s.combined && allSecs.some(x => x.id === s.section_id && x.course_id === sec.course_id && x.term === sec.term)))
+
   async function load() {
     // เฉพาะวิชาที่ตัวเองเป็นผู้สอน (แอดมินจะไม่เห็นวิชาของคนอื่นปนในหน้านี้)
     const { data: { session } } = await supabase.auth.getSession()
-    const [s0, c] = await Promise.all([
-      supabase.from('section_teachers')
-        .select('sections(id, term, group_no, default_lat, default_lng, default_radius_m, courses(code, name))')
-        .eq('teacher_id', session.user.id),
+    const cols = 'id, course_id, term, group_no, default_lat, default_lng, default_radius_m, courses(code, name)'
+    const mine = extra => supabase.from('section_teachers')
+      .select(`sections(${cols}${extra})`).eq('teacher_id', session.user.id)
+    let s0 = await mine(', planned_lab_sessions')
+    if (s0.error) s0 = await mine('')          // ฐานข้อมูลยังไม่ได้อัปเดตเป็นแบบมีแล็บ
+    const [all, c] = await Promise.all([
+      supabase.from('sections').select('id, course_id, term, group_no'),
       supabase.from('class_sessions').select('*').is('closed_at', null).order('opened_at', { ascending: false }),
     ])
-    setSections((s0.data ?? []).map(r => r.sections).filter(Boolean)); setSessions(c.data ?? [])
+    setSections((s0.data ?? []).map(r => r.sections).filter(Boolean))
+    setAllSecs(all.data ?? []); setSessions(c.data ?? [])
   }
   useEffect(() => { load() }, [])
 
@@ -170,7 +197,10 @@ export default function Teacher({ onGo }) {
     const g = geoOf(sec)
     const hasGeo = g.lat !== '' && g.lng !== '' && g.lat != null
     if (hasGeo && (!isFinite(+g.lat) || !isFinite(+g.lng))) return setMsg('ละติจูด/ลองจิจูดไม่ถูกต้อง')
+    const o = optsOf(sec)
+    const combined = o.kind === 'lecture' && o.combined && sibsOf(sec).length > 0
     const { data, error } = await supabase.from('class_sessions').insert({
+      ...(o.kind === 'lab' ? { kind: 'lab' } : {}), ...(combined ? { combined: true } : {}),   // ไม่ส่งถ้าเป็นค่าเดิม (ใช้ได้แม้ยังไม่ได้อัปเดตฐานข้อมูล)
       section_id: sec.id, opened_by: (await supabase.auth.getUser()).data.user.id,
       late_after: new Date(Date.now() + 15 * 60000).toISOString(),   // เกิน 15 นาที = สาย
       lat: hasGeo ? +g.lat : null, lng: hasGeo ? +g.lng : null,
@@ -187,11 +217,12 @@ export default function Teacher({ onGo }) {
 
   const cur = active && sessions.find(s => s.id === active.id)
   if (cur) {
-    const sec = sections.find(s => s.id === cur.section_id)
+    const sec = sections.find(s => s.id === cur.section_id) ?? sections.find(s => s.course_id === cur.course_id)
     return (
       <>
         <section className="card center">
           <h2>{sec?.courses.code} {sec?.courses.name ?? ''}</h2>
+          <p><span className={'kindtag ' + kindOf(cur)}>{KIND_LABEL[kindOf(cur)]}{cur.combined ? ' รวมทุกหมู่เรียน' : ''}</span></p>
           <QrBox sessionId={cur.id} />
           <p className="muted">QR เปลี่ยนทุก 15 วินาที — ฉายหน้าห้อง</p>
           <button className="danger" onClick={() => close(cur)}>ปิดคาบ</button>
@@ -208,7 +239,7 @@ export default function Teacher({ onGo }) {
       {note && <p className="ok">{note}</p>}
       {sections.length === 0 && <p className="card muted">ยังไม่มีวิชาที่คุณสอน ไปที่เมนู "เพิ่มรายวิชา" (หรือ "จัดการวิชา") เพื่อเพิ่มวิชาและนำเข้ารายชื่อนักศึกษา</p>}
       {sections.map(sec => {
-        const open = sessions.find(s => s.section_id === sec.id)
+        const open = openFor(sec)
         return (
           <section className="card" key={sec.id}>
             <h2>{sec.courses.code} {sec.courses.name ?? ''}</h2>
@@ -240,7 +271,28 @@ export default function Teacher({ onGo }) {
                     {sec.default_lat != null && <button className="link" onClick={() => saveLocation(sec, true)}>ล้างตำแหน่งประจำวิชา</button>}
                     <p className="muted">กดบันทึกครั้งเดียว คาบถัดไปจะใช้ตำแหน่งและรัศมีนี้อัตโนมัติ (ถ้าแก้ค่าโดยไม่กดบันทึก จะใช้เฉพาะคาบที่เปิดตอนนี้)</p>
                   </details>
-                  <button onClick={() => openSession(sec)}><Icon name="play" size={16} /> เปิดคาบเช็คชื่อ</button>
+                  {(() => {
+                    const o = optsOf(sec), sibs = sibsOf(sec)
+                    return (
+                      <div className="kindbox">
+                        {hasLab(sec) ? (
+                          <div className="seg">
+                            <button type="button" className={'segbtn' + (o.kind === 'lecture' ? ' on' : '')} onClick={() => setOptsOf(sec, { kind: 'lecture' })}>บรรยาย</button>
+                            <button type="button" className={'segbtn' + (o.kind === 'lab' ? ' on' : '')} onClick={() => setOptsOf(sec, { kind: 'lab' })}>ปฏิบัติ (แล็บ)</button>
+                          </div>
+                        ) : (
+                          <p className="muted">วิชานี้ยังไม่ได้ตั้งคาบแล็บ (ตั้งได้ที่เมนู "ผลการเช็คชื่อ" → สรุปตลอดเทอม → นโยบาย)</p>
+                        )}
+                        {o.kind === 'lecture' && sibs.length > 0 && (
+                          <label className="check">
+                            <input type="checkbox" checked={o.combined} onChange={e => setOptsOf(sec, { combined: e.target.checked })} />
+                            บรรยายรวมทุกหมู่เรียนของวิชานี้ (หมู่ {[sec, ...sibs].map(x => x.group_no).sort((a, b) => a - b).join(', ')}) นักศึกษาทุกหมู่สแกน QR เดียวกัน
+                          </label>
+                        )}
+                      </div>
+                    )
+                  })()}
+                  <button onClick={() => openSession(sec)}><Icon name="play" size={16} /> เปิดคาบ{optsOf(sec).kind === 'lab' ? 'แล็บ' : 'เช็คชื่อ'}</button>
                 </>}
           </section>
         )
