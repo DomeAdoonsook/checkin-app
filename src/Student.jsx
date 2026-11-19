@@ -45,6 +45,7 @@ export default function Student({ profile, scan, view = 'checkin', onScanDone })
   const [openSessions, setOpen] = useState([])
   const [records, setRecords] = useState([])
   const [terms, setTerms] = useState([])   // สรุปตลอดเทอมต่อวิชา
+  const [mine, setMine] = useState({})     // รายการเช็คชื่อของฉันในคาบที่เปิดอยู่ { session_id: {status, checked_at} }
   const [result, setResult] = useState(null)
   const [error, setError] = useState('')
   const [scanning, setScanning] = useState(false)
@@ -64,6 +65,25 @@ export default function Student({ profile, scan, view = 'checkin', onScanDone })
     return () => navigator.geolocation.clearWatch(id)
   }, [view])
 
+  // คาบที่เปิดอยู่ + สถานะที่ฉันเช็คไปแล้ว (เบา ใช้รีเฟรชอัตโนมัติ)
+  async function refreshOpen() {
+    const q = cols => supabase.from('class_sessions').select(cols)
+      .is('closed_at', null).order('opened_at', { ascending: false })
+    let r = await q('id, opened_at, kind, combined, course_id, sections(term, group_no, courses(code, name))')
+    if (r.error) r = await q('id, opened_at, sections(term, group_no, courses(code, name))')   // ฐานข้อมูลเก่า
+    const list = r.data ?? []
+    setOpen(list)
+    if (!list.length) return setMine({})
+    const m = await supabase.from('attendance').select('session_id, status, checked_at').in('session_id', list.map(x => x.id))
+    setMine(Object.fromEntries((m.data ?? []).map(x => [x.session_id, x])))
+  }
+  // อยู่หน้าเช็คชื่อ: ตรวจคาบที่เปิดใหม่/ปิดทุก 8 วินาที (ไม่ต้องรีเฟรชหน้าเอง)
+  useEffect(() => {
+    if (view !== 'checkin') return
+    const t = setInterval(refreshOpen, 8000)
+    return () => clearInterval(t)
+  }, [view])
+
   async function load() {
     const openQ = cols => supabase.from('class_sessions').select(cols)
       .is('closed_at', null).order('opened_at', { ascending: false })
@@ -75,6 +95,7 @@ export default function Student({ profile, scan, view = 'checkin', onScanDone })
     ])
     const s = s0.error ? await openQ('id, opened_at, sections(term, group_no, courses(code, name))') : s0   // ฐานข้อมูลเก่า
     setOpen(s.data ?? []); setRecords(h.data ?? [])
+    refreshOpen()
 
     // สรุปตลอดเทอมต่อวิชาที่ลงทะเบียน (บรรยาย/แล็บแยกกัน เทียบกับจำนวนคาบทั้งเทอมและเกณฑ์ขั้นต่ำ)
     try {
@@ -140,6 +161,7 @@ export default function Student({ profile, scan, view = 'checkin', onScanDone })
   if (result) return <Result r={result} onDone={() => { setResult(null); load() }} />
 
   // สรุปต่อวิชา
+  const allChecked = openSessions.length > 0 && openSessions.every(s => mine[s.id])
   const byCourse = {}
   for (const a of records) {
     const c = a.class_sessions?.sections?.courses
@@ -160,7 +182,13 @@ export default function Student({ profile, scan, view = 'checkin', onScanDone })
                 const c = s.sections?.courses ?? terms.find(x => x.sec.course_id === s.course_id)?.sec.courses
                 return <>{c?.code} {c?.name ?? ''}{s.combined ? '' : s.sections ? ` (กลุ่ม ${s.sections.group_no})` : ''}</>
               })()}{' '}
-              <span className={'kindtag ' + kindOf(s)}>{KIND_LABEL[kindOf(s)]}{s.combined ? ' รวมทุกหมู่' : ''}</span>
+              <span className={'kindtag ' + kindOf(s)}>{KIND_LABEL[kindOf(s)]}{s.combined ? ' รวมทุกหมู่' : ''}</span>{' '}
+              {mine[s.id]
+                ? <span className={'badge2 ' + (mine[s.id].status === 'pending' ? 'risk' : 'pass')}>
+                    {mine[s.id].status === 'pending' ? 'ส่งแล้ว รออาจารย์ตรวจสอบ' : `เช็คชื่อแล้ว${mine[s.id].status === 'late' ? ' (สาย)' : ''}`}
+                    {' '}· {new Date(mine[s.id].checked_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                : <span className="badge2 risk">ยังไม่ได้เช็คชื่อ</span>}
             </p>
           ))}
         {gps === 'denied'
@@ -171,8 +199,10 @@ export default function Student({ profile, scan, view = 'checkin', onScanDone })
         {error && <p className="err">{error}</p>}
         {scanning
           ? <><div id="reader" /><button className="secondary" onClick={() => setScanning(false)}>ยกเลิก</button></>
-          : <button disabled={busy || openSessions.length === 0} onClick={() => { setError(''); setScanning(true) }}>
-              {busy ? 'กำลังเช็คชื่อ…' : <><Icon name="camera" size={18} /> สแกน QR เพื่อเช็คชื่อ</>}
+          : <button disabled={busy || openSessions.length === 0 || allChecked} onClick={() => { setError(''); setScanning(true) }}>
+              {busy ? 'กำลังเช็คชื่อ…'
+                : allChecked ? <><Icon name="check" size={18} /> เช็คชื่อเรียบร้อยแล้ว</>
+                : <><Icon name="camera" size={18} /> สแกน QR เพื่อเช็คชื่อ</>}
             </button>}
       </section>}
 
