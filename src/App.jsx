@@ -8,6 +8,7 @@ import Admin from './Admin.jsx'
 import CourseManager from './CourseManager.jsx'
 import AdminHome from './AdminHome.jsx'
 import Results from './Results.jsx'
+import ShareApp from './ShareApp.jsx'
 import Icon from './Icon.jsx'
 import Logo from './Logo.jsx'
 
@@ -41,6 +42,7 @@ function navFor(role, pending) {
         { id: 'courses', icon: 'book', label: 'วิชาที่ฉันสอน', short: 'วิชา' },
         { id: 'results', icon: 'chart', label: 'ผลการเช็คชื่อ', short: 'ผลเช็ค' },
         { id: 'manage', icon: 'plus', label: 'จัดการวิชา', short: 'จัดการ' },
+        { id: 'share', icon: 'share', label: 'แชร์แอป', short: 'แชร์', hideMobile: true },
       ] },
       { title: 'ผู้ดูแลระบบ', items: [
         { id: 'overview', icon: 'home', label: 'ภาพรวม', short: 'ภาพรวม' },
@@ -54,6 +56,7 @@ function navFor(role, pending) {
       { id: 'courses', icon: 'book', label: 'วิชาของฉัน', short: 'วิชา' },
       { id: 'results', icon: 'chart', label: 'ผลการเช็คชื่อ', short: 'ผลเช็ค' },
       { id: 'manage', icon: 'plus', label: 'เพิ่มรายวิชา', short: 'เพิ่มวิชา' },
+      { id: 'share', icon: 'share', label: 'แชร์แอป', short: 'แชร์', hideMobile: true },
     ] },
     { title: 'บัญชี', items: [ACCOUNT] },
   ]
@@ -128,6 +131,7 @@ export default function App() {
   else if (current === 'applicants') view = <Admin onChanged={refreshPending} />
   else if (current === 'results') view = <Results isAdmin={profile.role === 'admin'} />
   else if (current === 'manage') view = <CourseManager isAdmin={profile.role === 'admin'} />
+  else if (current === 'share') view = <ShareApp />
   else view = <Teacher profile={profile} onGo={go} />
 
   return (
@@ -139,7 +143,7 @@ export default function App() {
             <div key={g.title}>
               <div className="navgroup">{g.title}</div>
               {g.items.map(it => (
-                <button key={it.id} className={'nav-item' + (current === it.id ? ' on' : '')} onClick={() => go(it.id)}>
+                <button key={it.id} className={'nav-item' + (current === it.id ? ' on' : '') + (it.hideMobile ? ' hide-mobile' : '')} onClick={() => go(it.id)}>
                   <span className="ico"><Icon name={it.icon} /></span>
                   <span className="lbl-long">{it.label}</span>
                   <span className="lbl-short">{it.short}</span>
